@@ -377,7 +377,7 @@ struct vmbus_channel *relid2channel(u32 relid)
 void vmbus_on_event(unsigned long data)
 {
 	struct vmbus_channel *channel = (void *) data;
-	void (*callback_fn)(void *context);
+	onchannel_t *callback_fn;
 
 	trace_vmbus_on_event(channel);
 
@@ -391,7 +391,7 @@ void vmbus_on_event(unsigned long data)
 	if (unlikely(!callback_fn))
 		return;
 
-	(*callback_fn)(channel->channel_callback_context);
+	(*callback_fn)(channel, channel->channel_callback_context);
 
 	if (channel->callback_mode != HV_CALL_BATCHED)
 		return;
