@@ -170,6 +170,19 @@ void *rust_helper_hv_get_drvdata(struct hv_device *dev)
 }
 EXPORT_SYMBOL_GPL(rust_helper_hv_get_drvdata);
 
+void rust_helper_set_channel_read_mode(struct vmbus_channel *c,
+				       enum hv_callback_mode mode)
+{
+	set_channel_read_mode(c, mode);
+}
+EXPORT_SYMBOL_GPL(rust_helper_set_channel_read_mode);
+
+size_t rust_helper_VMBUS_RING_SIZE(size_t payload_sz)
+{
+	return VMBUS_RING_SIZE(payload_sz);
+}
+EXPORT_SYMBOL_GPL(rust_helper_VMBUS_RING_SIZE);
+
 /*
  * `bindgen` binds the C `size_t` type the Rust `usize` type, so we can
  * use it in contexts where Rust expects a `usize` like slice (array) indices.
