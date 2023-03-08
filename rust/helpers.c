@@ -31,6 +31,7 @@
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
+#include <linux/hyperv.h>
 
 __noreturn void rust_helper_BUG(void)
 {
@@ -156,6 +157,18 @@ void rust_helper_init_work_with_key(struct work_struct *work, work_func_t func,
 	work->func = func;
 }
 EXPORT_SYMBOL_GPL(rust_helper_init_work_with_key);
+
+void rust_helper_hv_set_drvdata(struct hv_device *dev, void *data)
+{
+	hv_set_drvdata(dev, data);
+}
+EXPORT_SYMBOL_GPL(rust_helper_hv_set_drvdata);
+
+void *rust_helper_hv_get_drvdata(struct hv_device *dev)
+{
+	return hv_get_drvdata(dev);
+}
+EXPORT_SYMBOL_GPL(rust_helper_hv_get_drvdata);
 
 /*
  * `bindgen` binds the C `size_t` type the Rust `usize` type, so we can
