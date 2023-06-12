@@ -158,11 +158,11 @@ void rust_helper_init_work_with_key(struct work_struct *work, work_func_t func,
 EXPORT_SYMBOL_GPL(rust_helper_init_work_with_key);
 
 /*
- * `bindgen` binds the C `size_t` type as the Rust `usize` type, so we can
+ * `bindgen` binds the C `size_t` type the Rust `usize` type, so we can
  * use it in contexts where Rust expects a `usize` like slice (array) indices.
- * `usize` is defined to be the same as C's `uintptr_t` type (can hold any
- * pointer) but not necessarily the same as `size_t` (can hold the size of any
- * single object). Most modern platforms use the same concrete integer type for
+ * `usize` is defined to be the same as C's `uintptr_t` type (can hold any pointer)
+ * but not necessarily the same as `size_t` (can hold the size of any single
+ * object). Most modern platforms use the same concrete integer type for
  * both of them, but in case we find ourselves on a platform where
  * that's not true, fail early instead of risking ABI or
  * integer-overflow issues.
