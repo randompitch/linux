@@ -27,7 +27,7 @@ pub(crate) fn vtable(_attr: TokenStream, ts: TokenStream) -> TokenStream {
     };
 
     let mut body_it = body.stream().into_iter();
-    let mut functions = Vec::new();
+    let mut functions = HashSet::new();
     let mut consts = HashSet::new();
     while let Some(token) = body_it.next() {
         match token {
@@ -37,7 +37,7 @@ pub(crate) fn vtable(_attr: TokenStream, ts: TokenStream) -> TokenStream {
                     // Possibly we've encountered a fn pointer type instead.
                     _ => continue,
                 };
-                functions.push(fn_name);
+                functions.insert(fn_name);
             }
             TokenTree::Ident(ident) if ident.to_string() == "const" => {
                 let const_name = match body_it.next() {
