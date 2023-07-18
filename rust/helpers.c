@@ -20,6 +20,7 @@
  * Sorted alphabetically.
  */
 
+#include <kunit/test-bug.h>
 #include <linux/bug.h>
 #include <linux/build_bug.h>
 #include <linux/err.h>
@@ -136,6 +137,12 @@ void rust_helper_put_task_struct(struct task_struct *t)
 	put_task_struct(t);
 }
 EXPORT_SYMBOL_GPL(rust_helper_put_task_struct);
+
+struct kunit *rust_helper_kunit_get_current_test(void)
+{
+	return kunit_get_current_test();
+}
+EXPORT_SYMBOL_GPL(rust_helper_kunit_get_current_test);
 
 /*
  * `bindgen` binds the C `size_t` type as the Rust `usize` type, so we can
