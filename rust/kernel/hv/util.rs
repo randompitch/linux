@@ -49,7 +49,7 @@ pub trait Service {
     }
 
     /// Called when data becomes available in the bus.
-    fn callback(_data: &mut Self::Data, _chan: &hv::Channel) {}
+    fn callback(_data: <Self::Data as ForeignOwnable>::BorrowedMut<'_>, _chan: &hv::Channel) {}
 }
 
 /// Utility driver.
@@ -60,7 +60,7 @@ pub struct Util<T: Service> {
 
 impl<T: Service> hv::ChannelDataHandler for Util<T> {
     type Context = T::Data;
-    fn handle_data(data: &mut Self::Context, chan: &hv::Channel) {
+    fn handle_data(data: <Self::Context as ForeignOwnable>::BorrowedMut<'_>, chan: &hv::Channel) {
         T::callback(data, chan)
     }
 }
@@ -99,7 +99,7 @@ impl<T: Service + 'static> vmbus::Driver for Util<T> {
         Ok(())
     }
 
-    fn suspend(data: &mut Self::Data) -> Result {
+    fn suspend(data: <Self::Data as ForeignOwnable>::BorrowedMut<'_>) -> Result {
         if let Some(chan) = data.chan.take() {
             // TODO: Disable callbacks, so that we can get a mutable reference before closing the
             // channel.
@@ -110,7 +110,7 @@ impl<T: Service + 'static> vmbus::Driver for Util<T> {
         Ok(())
     }
 
-    fn resume(data: &mut Self::Data) -> Result {
+    fn resume(data: <Self::Data as ForeignOwnable>::BorrowedMut<'_>) -> Result {
         if let Some((to_open, mut svc_data)) = data.chan_data.take() {
             T::pre_resume(&mut svc_data)?;
             let chan = to_open.open::<Self>(

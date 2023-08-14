@@ -7,7 +7,7 @@
 use crate::{
     bindings, device, driver,
     error::to_result,
-    error::{from_kernel_result, Result},
+    error::Result,
     str::CStr,
     types::ForeignOwnable,
     ThisModule,
@@ -70,12 +70,12 @@ pub trait Driver {
     }
 
     /// Prepares the device for suspension.
-    fn suspend(_data: &mut Self::Data) -> Result {
+    fn suspend(_data: <Self::Data as ForeignOwnable>::BorrowedMut<'_>) -> Result {
         Ok(())
     }
 
     /// Prepares the device to resume from suspension.
-    fn resume(_data: &mut Self::Data) -> Result {
+    fn resume(_data: <Self::Data as ForeignOwnable>::BorrowedMut<'_>) -> Result {
         Ok(())
     }
 }
@@ -133,7 +133,7 @@ impl<T: Driver> Adapter<T> {
         pdev: *mut bindings::hv_device,
         id: *const bindings::hv_vmbus_device_id,
     ) -> core::ffi::c_int {
-        from_kernel_result! {
+        crate::error::from_result(|| {
             // SAFETY: `pdev` is valid by the contract with the C code. `dev` is alive only for the
             // duration of this call, so it is guaranteed to remain alive for the lifetime of
             // `pdev`.
@@ -146,49 +146,46 @@ impl<T: Driver> Adapter<T> {
             // SAFETY: `pdev` is guaranteed to be a valid, non-null pointer.
             unsafe { bindings::hv_set_drvdata(pdev, data.into_foreign() as _) };
             Ok(0)
-        }
+        })
     }
 
-    extern "C" fn remove_callback(dev: *mut bindings::hv_device) -> core::ffi::c_int {
-        from_kernel_result! {
-            // SAFETY: `dev` is guaranteed to be a valid, non-null pointer.
-            let ptr = unsafe { bindings::hv_get_drvdata(dev) };
-            // SAFETY:
-            //   - we allocated this pointer using `T::Data::into_foreign`,
-            //     so it is safe to turn back into a `T::Data`.
-            //   - the allocation happened in `probe`, no-one freed the memory,
-            //     `remove` is the canonical kernel location to free driver data. so OK
-            //     to convert the pointer back to a Rust structure here.
-            let mut data = unsafe { T::Data::from_foreign(ptr) };
-            let ret = T::remove(&mut data);
-            <T::Data as driver::DeviceRemoval>::device_remove(&data);
-            ret?;
-            Ok(0)
-        }
+    extern "C" fn remove_callback(dev: *mut bindings::hv_device) {
+        // SAFETY: `dev` is guaranteed to be a valid, non-null pointer.
+        let ptr = unsafe { bindings::hv_get_drvdata(dev) };
+        // SAFETY:
+        //   - we allocated this pointer using `T::Data::into_foreign`,
+        //     so it is safe to turn back into a `T::Data`.
+        //   - the allocation happened in `probe`, no-one freed the memory,
+        //     `remove` is the canonical kernel location to free driver data. so OK
+        //     to convert the pointer back to a Rust structure here.
+        let mut data = unsafe { T::Data::from_foreign(ptr) };
+        let ret = T::remove(&mut data);
+        <T::Data as driver::DeviceRemoval>::device_remove(&data);
+        ret.expect("device removal failed");
     }
 
     extern "C" fn suspend_callback(dev: *mut bindings::hv_device) -> core::ffi::c_int {
-        from_kernel_result! {
+        crate::error::from_result(|| {
             // SAFETY: `dev` is guaranteed to be a valid, non-null pointer.
             let ptr = unsafe { bindings::hv_get_drvdata(dev) };
             // SAFETY: `ptr` was initialised in `probe_callback` with the result of `into_foreign`,
             // and while `suspend` is being called, no other concurrent functions are called.
-            let mut data = unsafe { T::Data::borrow_mut(ptr) };
-            T::suspend(&mut data)?;
+            let data = unsafe { T::Data::borrow_mut(ptr) };
+            T::suspend(data)?;
             Ok(0)
-        }
+        })
     }
 
     extern "C" fn resume_callback(dev: *mut bindings::hv_device) -> core::ffi::c_int {
-        from_kernel_result! {
+        crate::error::from_result(|| {
             // SAFETY: `dev` is guaranteed to be a valid, non-null pointer.
             let ptr = unsafe { bindings::hv_get_drvdata(dev) };
             // SAFETY: `ptr` was initialised in `probe_callback` with the result of `into_foreign`,
             // and while `resume` is being called, no other concurrent functions are called.
-            let mut data = unsafe { T::Data::borrow_mut(ptr) };
-            T::resume(&mut data)?;
+            let data = unsafe { T::Data::borrow_mut(ptr) };
+            T::resume(data)?;
             Ok(0)
-        }
+        })
     }
 }
 

@@ -137,12 +137,12 @@ impl ChannelToOpen {
         // SAFETY: Given that the channel can only be in batched and direct call modes, the
         // callback is guaranteed to not run concurrently, so it's safe to borrow the context data
         // mutably.
-        let mut data = unsafe { H::Context::borrow_mut(context) };
+        let data = unsafe { H::Context::borrow_mut(context) };
 
         // SAFETY: The channel is valid by the C contract, so it's safe to cast it to the
         // transparent `Channel` type.
         let channel = unsafe { &*(chan as *const Channel) };
-        H::handle_data(&mut data, channel)
+        H::handle_data(data, channel)
     }
 }
 
@@ -211,7 +211,7 @@ pub trait ChannelDataHandler {
     type Context: ForeignOwnable + Sync + Send;
 
     /// Called from interrupt context when the irq happens.
-    fn handle_data(data: &mut Self::Context, chan: &Channel);
+    fn handle_data(data: <Self::Context as ForeignOwnable>::BorrowedMut<'_>, chan: &Channel);
 }
 
 /// An open channel on a vmbus bus.
