@@ -121,6 +121,7 @@ impl<T: DriverOps> Drop for Registration<T> {
 ///     that buses can recover the pointer to the data.
 ///   - [`RawDeviceId::offset_from_rawid`] returns the offset value stored in a previous call to
 ///     [`RawDeviceId::to_rawid`].
+#[const_trait]
 pub unsafe trait RawDeviceId {
     /// The raw type that holds the device id.
     ///
@@ -230,7 +231,7 @@ impl<'a, T: RawDeviceId, U> IdTable<'a, T, U> {
     }
 }
 
-impl<T: RawDeviceId, U> const AsRef<T::RawType> for IdTable<'_, T, U> {
+impl<T: RawDeviceId, U> AsRef<T::RawType> for IdTable<'_, T, U> {
     fn as_ref(&self) -> &T::RawType {
         self.first
     }
