@@ -25,6 +25,7 @@ impl util::Service for Heartbeat {
     kernel::define_vmbus_single_id!("57164f39-9115-4e78-ab55-382f3bd5422d");
 
     fn init() -> Result<Self::Data> {
+        pr_info!("Rust: init heartbeat service");
         Ok(Box::try_new(Self {
             version: None,
             buf: [0; BUF_SIZE],
@@ -64,7 +65,7 @@ impl util::Service for Heartbeat {
                     let ret = hv::vmbus::prep_negotiate_resp(buf, util::FW_VERSIONS, HB_VERSIONS);
                     if let Some((_, srv_version)) = ret {
                         pr_info!(
-                            "Heartbeat IC version {}.{}\n",
+                            "RUST: Heartbeat IC version {}.{}\n",
                             srv_version >> 16,
                             srv_version & 0xFFFF
                         );
@@ -76,7 +77,7 @@ impl util::Service for Heartbeat {
                     // Ensure recvlen is big enough to read seq_num. Reserved area is not
                     // included in the check as the host may not fill it up entirely.
                     if let Some(seq_num) = u64::from_bytes_mut(buf, ICMSG_HDR) {
-			pr_info!("Got a heartbeat message: {}\n", *seq_num);
+                        pr_info!("RUST: Got a heartbeat message: {}\n", *seq_num);
                         *seq_num += 1;
                     } else {
                         pr_err!(

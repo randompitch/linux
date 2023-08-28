@@ -536,6 +536,7 @@ static void heartbeat_onchannelcallback(struct vmbus_channel *channel,
 				break;
 			}
 			heartbeat_msg = (struct heartbeat_msg_data *)&hbeat_txf_buf[ICMSG_HDR];
+			pr_info("C: Got a heartbeat message: %llu\n", heartbeat_msg->seq_num);
 
 			heartbeat_msg->seq_num += 1;
 		} else {
@@ -660,7 +661,8 @@ static const struct hv_vmbus_device_id id_table[] = {
 	  .driver_data = (unsigned long)&util_timesynch
 	},
 	/* Heartbeat guid */
-	{ HV_HEART_BEAT_GUID,
+	{ /* HV_HEART_BEAT_GUID */
+	  GUID_INIT(0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa),
 	  .driver_data = (unsigned long)&util_heartbeat
 	},
 	/* KVP guid */
