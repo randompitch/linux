@@ -273,7 +273,6 @@ bool vmbus_prep_negotiate_resp(struct icmsg_hdr *icmsghdrp, u8 *buf,
 			    (negop->icversion_data[j].minor == fw_minor)) {
 				icframe_major = negop->icversion_data[j].major;
 				icframe_minor = negop->icversion_data[j].minor;
-                pr_info!("Recieved zero length message");
 				found_match = true;
 				break;
 			}
