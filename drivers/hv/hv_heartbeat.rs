@@ -56,7 +56,7 @@ impl util::Service for Heartbeat {
                 break;
             };
 
-            icmsghdrp.icflags |=
+            icmsghdrp.icflags =
                 (bindings::ICMSGHDRFLAG_TRANSACTION | bindings::ICMSGHDRFLAG_RESPONSE) as u8;
 
             let msgtype = icmsghdrp.icmsgtype as u32;
@@ -65,7 +65,7 @@ impl util::Service for Heartbeat {
                     let ret = hv::vmbus::prep_negotiate_resp(buf, util::FW_VERSIONS, HB_VERSIONS);
                     if let Some((_, srv_version)) = ret {
                         pr_info!(
-                            "RUST: Heartbeat IC version {}.{}\n",
+                            "Heartbeat IC version {}.{}\n",
                             srv_version >> 16,
                             srv_version & 0xFFFF
                         );
@@ -77,7 +77,6 @@ impl util::Service for Heartbeat {
                     // Ensure recvlen is big enough to read seq_num. Reserved area is not
                     // included in the check as the host may not fill it up entirely.
                     if let Some(seq_num) = u64::from_bytes_mut(buf, ICMSG_HDR) {
-                        pr_info!("RUST: Got a heartbeat message: {}\n", *seq_num);
                         *seq_num += 1;
                     } else {
                         pr_err!(

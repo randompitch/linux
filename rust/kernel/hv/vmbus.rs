@@ -12,7 +12,6 @@ use crate::{
     types::ForeignOwnable,
     ThisModule,
 };
-use kernel::prelude::*;
 
 /// A registration of a vmbus driver.
 pub type Registration<T> = driver::Registration<Adapter<T>>;
@@ -92,7 +91,6 @@ impl<T: Driver> driver::DriverOps for Adapter<T> {
         name: &'static CStr,
         module: &'static ThisModule,
     ) -> Result {
-        pr_info!("Rust: registered {name} as a vmbus driver");
         // SAFETY: By the safety requirements of this function (defined in the trait definition),
         // `reg` is non-null and valid.
         let drv = unsafe { &mut *reg };

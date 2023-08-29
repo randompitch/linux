@@ -42,16 +42,20 @@
 #define TS_MAJOR_3	3
 #define TS_VERSION_3	(TS_MAJOR_3 << 16 | TS_MINOR)
 
+#ifndef CONFIG_HYPERV_UTILS_RUST
 #define HB_MAJOR	3
 #define HB_MINOR	0
 #define HB_VERSION	(HB_MAJOR << 16 | HB_MINOR)
 
 #define HB_MAJOR_1	1
 #define HB_VERSION_1	(HB_MAJOR_1 << 16 | HB_MINOR)
+#endif
 
 static int sd_srv_version;
 static int ts_srv_version;
+#ifndef CONFIG_HYPERV_UTILS_RUST
 static int hb_srv_version;
+#endif
 
 #define SD_VER_COUNT 4
 static const int sd_versions[] = {
@@ -68,11 +72,13 @@ static const int ts_versions[] = {
 	TS_VERSION_1
 };
 
+#ifndef CONFIG_HYPERV_UTILS_RUST
 #define HB_VER_COUNT 2
 static const int hb_versions[] = {
 	HB_VERSION,
 	HB_VERSION_1
 };
+#endif
 
 #define FW_VER_COUNT 2
 static const int fw_versions[] = {
@@ -133,10 +139,12 @@ static struct hv_util_service util_timesynch = {
 	.util_deinit = hv_timesync_deinit,
 };
 
+#ifndef CONFIG_HYPERV_UTILS_RUST
 static onchannel_t heartbeat_onchannelcallback;
 static struct hv_util_service util_heartbeat = {
 	.util_cb = heartbeat_onchannelcallback,
 };
+#endif
 
 static struct hv_util_service util_kvp = {
 	.util_cb = hv_kvp_onchannelcallback,
@@ -479,6 +487,7 @@ static void timesync_onchannelcallback(struct vmbus_channel *channel,
 	}
 }
 
+#ifndef CONFIG_HYPERV_UTILS_RUST
 /*
  * Heartbeat functionality.
  * Every two seconds, Hyper-V send us a heartbeat request message.
@@ -536,7 +545,6 @@ static void heartbeat_onchannelcallback(struct vmbus_channel *channel,
 				break;
 			}
 			heartbeat_msg = (struct heartbeat_msg_data *)&hbeat_txf_buf[ICMSG_HDR];
-			pr_info("C: Got a heartbeat message: %llu\n", heartbeat_msg->seq_num);
 
 			heartbeat_msg->seq_num += 1;
 		} else {
@@ -553,6 +561,7 @@ static void heartbeat_onchannelcallback(struct vmbus_channel *channel,
 				 VM_PKT_DATA_INBAND, 0);
 	}
 }
+#endif // HYPERV_UTILS_RUST
 
 #define HV_UTIL_RING_SEND_SIZE VMBUS_RING_SIZE(3 * HV_HYP_PAGE_SIZE)
 #define HV_UTIL_RING_RECV_SIZE VMBUS_RING_SIZE(3 * HV_HYP_PAGE_SIZE)
@@ -660,11 +669,12 @@ static const struct hv_vmbus_device_id id_table[] = {
 	{ HV_TS_GUID,
 	  .driver_data = (unsigned long)&util_timesynch
 	},
+#ifndef CONFIG_HYPERV_UTILS_RUST
 	/* Heartbeat guid */
-	{ /* HV_HEART_BEAT_GUID */
-	  GUID_INIT(0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa),
+	{ HV_HEART_BEAT_GUID,
 	  .driver_data = (unsigned long)&util_heartbeat
 	},
+#endif
 	/* KVP guid */
 	{ HV_KVP_GUID,
 	  .driver_data = (unsigned long)&util_kvp
