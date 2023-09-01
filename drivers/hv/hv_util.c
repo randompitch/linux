@@ -117,6 +117,11 @@ static int hv_shutdown_init(struct hv_util_service *srv)
 	hibernate_context.dev = channel->device_obj;
 
 	hibernation_supported = hv_is_hibernation_supported();
+	if (hibernation_supported) {
+		pr_info("Hibernation supported");
+	} else {
+		pr_info("Hibernation not supported");
+	}
 
 	return 0;
 }
@@ -663,6 +668,7 @@ static int util_resume(struct hv_device *dev)
 static const struct hv_vmbus_device_id id_table[] = {
 	/* Shutdown guid */
 	{ HV_SHUTDOWN_GUID,
+	  /* GUID_INIT(0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa), */
 	  .driver_data = (unsigned long)&util_shutdown
 	},
 	/* Time synch guid */
