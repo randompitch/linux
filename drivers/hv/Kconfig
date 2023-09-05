@@ -49,7 +49,7 @@ config HYPERV_UTILS
 
 config HYPERV_UTILS_RUST
 	tristate "Microsoft Hyper-V Utilities Rust driver"
-	depends on HYPERV_UTILS
+	depends on HYPERV_UTILS && RUST
 	help
 	  Select this option to enable the Hyper-V Utilities written in
 	  Rust.
