@@ -72,15 +72,14 @@ impl WorkItem<RB_WK_ID> for SdWork {
 impl WorkItem<HB_WK_ID> for SdWork {
     type Pointer = Arc<SdWork>;
     fn run(ctx: Arc<SdWork>) {
-        pr_info!("Hibernate work run!");
+        pr_err!("Hibernation is not currently supported in the rust driver");
     }
 }
 
 impl util::Service for Shutdown {
     type Data = Box<Self>;
 
-    // kernel::define_vmbus_single_id!("0e0b6031-5213-4934-818b-38d90ced39db");
-    kernel::define_vmbus_single_id!("0e0b6031-5213-4934-818b-000000000000");
+    kernel::define_vmbus_single_id!("0e0b6031-5213-4934-818b-38d90ced39db");
 
     fn init() -> Result<Self::Data> {
         pr_info!("Rust: init shutdown service");
@@ -96,6 +95,10 @@ impl util::Service for Shutdown {
             // SAFETY: C function does not impose any restrictions
             hibernate_supported: unsafe { bindings::hv_is_hibernation_supported() },
         })?;
+
+        // This driver does not support hibernation
+        res.hibernate_supported = false;
+
         if res.hibernate_supported {
             pr_info!("Hibernation supported");
         } else {

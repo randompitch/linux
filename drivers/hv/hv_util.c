@@ -21,6 +21,7 @@
 
 #include "hyperv_vmbus.h"
 
+#ifndef CONFIG_HYPERV_UTILS_RUST
 #define SD_MAJOR	3
 #define SD_MINOR	0
 #define SD_MINOR_1	1
@@ -31,6 +32,7 @@
 
 #define SD_MAJOR_1	1
 #define SD_VERSION_1	(SD_MAJOR_1 << 16 | SD_MINOR)
+#endif
 
 #define TS_MAJOR	4
 #define TS_MINOR	0
@@ -51,12 +53,13 @@
 #define HB_VERSION_1	(HB_MAJOR_1 << 16 | HB_MINOR)
 #endif
 
-static int sd_srv_version;
 static int ts_srv_version;
 #ifndef CONFIG_HYPERV_UTILS_RUST
+static int sd_srv_version;
 static int hb_srv_version;
 #endif
 
+#ifndef CONFIG_HYPERV_UTILS_RUST
 #define SD_VER_COUNT 4
 static const int sd_versions[] = {
 	SD_VERSION_3_2,
@@ -64,6 +67,7 @@ static const int sd_versions[] = {
 	SD_VERSION,
 	SD_VERSION_1
 };
+#endif
 
 #define TS_VER_COUNT 3
 static const int ts_versions[] = {
@@ -86,6 +90,7 @@ static const int fw_versions[] = {
 	UTIL_WS2K8_FW_VERSION
 };
 
+#ifndef CONFIG_HYPERV_UTILS_RUST
 /*
  * Send the "hibernate" udev event in a thread context.
  */
@@ -131,6 +136,7 @@ static struct hv_util_service util_shutdown = {
 	.util_cb = shutdown_onchannelcallback,
 	.util_init = hv_shutdown_init,
 };
+#endif // CONFIG_HYPERV_UTILS_RUST
 
 static int hv_timesync_init(struct hv_util_service *srv);
 static int hv_timesync_pre_suspend(void);
@@ -175,6 +181,7 @@ static struct hv_util_service util_fcopy = {
 	.util_deinit = hv_fcopy_deinit,
 };
 
+#ifndef CONFIG_HYPERV_UTILS_RUST
 static void perform_shutdown(struct work_struct *dummy)
 {
 	orderly_poweroff(true);
@@ -292,6 +299,7 @@ static void shutdown_onchannelcallback(struct vmbus_channel *channel,
 	if (work)
 		schedule_work(work);
 }
+#endif // CONFIG_HYPERV_UTILS_RUST
 
 /*
  * Set the host time in a process context.
@@ -667,10 +675,11 @@ static int util_resume(struct hv_device *dev)
 
 static const struct hv_vmbus_device_id id_table[] = {
 	/* Shutdown guid */
+#ifndef CONFIG_HYPERV_UTILS_RUST
 	{ HV_SHUTDOWN_GUID,
-	  /* GUID_INIT(0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa), */
 	  .driver_data = (unsigned long)&util_shutdown
 	},
+#endif
 	/* Time synch guid */
 	{ HV_TS_GUID,
 	  .driver_data = (unsigned long)&util_timesynch
