@@ -57,21 +57,21 @@ impl_has_work! {
 
 impl WorkItem<SD_WK_ID> for SdWork {
     type Pointer = Arc<SdWork>;
-    fn run(ctx: Arc<SdWork>) {
+    fn run(_ctx: Arc<SdWork>) {
         pr_info!("SdWork work run!");
         unsafe { bindings::orderly_poweroff(true); }
     }
 }
 impl WorkItem<RB_WK_ID> for SdWork {
     type Pointer = Arc<SdWork>;
-    fn run(ctx: Arc<SdWork>) {
+    fn run(_ctx: Arc<SdWork>) {
         pr_info!("Reboot work run!");
         unsafe { bindings::orderly_reboot(); }
     }
 }
 impl WorkItem<HB_WK_ID> for SdWork {
     type Pointer = Arc<SdWork>;
-    fn run(ctx: Arc<SdWork>) {
+    fn run(_ctx: Arc<SdWork>) {
         pr_err!("Hibernation is not currently supported in the rust driver");
     }
 }
@@ -84,7 +84,7 @@ impl util::Service for Shutdown {
     fn init() -> Result<Self::Data> {
         pr_info!("Rust: init shutdown service");
         // Infalliable because `?` will return instead of initializing
-        let res = Box::init::<Infallible>(Self {
+        let mut res = Box::init::<Infallible>(Self {
             version: None,
             buf: [0; BUF_SIZE],
             work: Arc::pin_init(pin_init!(SdWork {
