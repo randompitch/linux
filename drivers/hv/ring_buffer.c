@@ -384,6 +384,7 @@ int hv_ringbuffer_write(struct vmbus_channel *channel,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hv_ringbuffer_write);
 
 int hv_ringbuffer_read(struct vmbus_channel *channel,
 		       void *buffer, u32 buflen, u32 *buffer_actual_len,
@@ -427,6 +428,7 @@ int hv_ringbuffer_read(struct vmbus_channel *channel,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hv_ringbuffer_read);
 
 /*
  * Determine number of bytes available in ring buffer after

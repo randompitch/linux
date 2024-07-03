@@ -1181,6 +1181,13 @@ int vmbus_connect_ring(struct vmbus_channel *channel,
 		       void *context);
 int vmbus_disconnect_ring(struct vmbus_channel *channel);
 
+/*
+static int __vmbus_open(struct vmbus_channel *newchannel,
+                       void *userdata,
+                       u32 userdatalen,
+                       onchannel_t onchannelcallback,
+                       void *context);
+*/
 extern int vmbus_open(struct vmbus_channel *channel,
 			    u32 send_ringbuffersize,
 			    u32 recv_ringbuffersize,
@@ -1338,6 +1345,14 @@ int hv_ringbuffer_get_debuginfo(struct hv_ring_buffer_info *ring_info,
 				struct hv_ring_buffer_debug_info *debug_info);
 
 bool hv_ringbuffer_spinlock_busy(struct vmbus_channel *channel);
+
+int hv_ringbuffer_write(struct vmbus_channel *channel,
+                        const struct kvec *kv_list, u32 kv_count,
+                        u64 requestid, u64 *trans_id);
+
+int hv_ringbuffer_read(struct vmbus_channel *channel,
+                       void *buffer, u32 buflen, u32 *buffer_actual_len,
+                       u64 *requestid, bool raw);
 
 /* Vmbus interface */
 #define vmbus_driver_register(driver)	\

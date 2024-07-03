@@ -817,7 +817,7 @@ int vmbus_open(struct vmbus_channel *newchannel,
 			   onchannelcallback, context);
 	if (err)
 		vmbus_free_ring(newchannel);
-
+	//pr_info("t-megha open called from C");
 	return err;
 }
 EXPORT_SYMBOL_GPL(vmbus_open);

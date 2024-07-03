@@ -4,6 +4,7 @@
 //!
 //! C header: [`include/linux/hyperv.h`](../../../../include/linux/hyperv.h)
 
+//#[macro_use]
 use crate::{
     bindings, device, driver,
     error::to_result,
@@ -13,6 +14,7 @@ use crate::{
     ThisModule,
 };
 
+use kernel::prelude::*;
 /// A registration of a vmbus driver.
 pub type Registration<T> = driver::Registration<Adapter<T>>;
 
@@ -94,6 +96,7 @@ impl<T: Driver> driver::DriverOps for Adapter<T> {
         // SAFETY: By the safety requirements of this function (defined in the trait definition),
         // `reg` is non-null and valid.
         let drv = unsafe { &mut *reg };
+        pr_info!("t-megha something is being called");
 
         drv.name = name.as_char_ptr();
         drv.probe = Some(Self::probe_callback);
@@ -243,6 +246,97 @@ pub fn prep_negotiate_resp(
         return None;
     }
 
+    fn vmbus_prep_negotiate_resp(icmsghdrp: *mut bindings::icmsg_hdr,
+                                 buf: *mut u8,
+                                 buflen: u32,
+                                 fw_version: *const core::ffi::c_int,
+                                 fw_vercnt: core::ffi::c_int,
+                                 srv_version: *const core::ffi::c_int,
+                                 srv_vercnt: core::ffi::c_int,
+                                 nego_fw_version: *mut core::ffi::c_int,
+                                 nego_srv_version: *mut core::ffi::c_int
+                                 ) -> bool {
+        let mut icframe_major;
+        let mut icframe_minor;
+        let mut icmsg_major;
+        let mut icmsg_minor;
+        let mut fw_major;
+        let mut fw_minor;
+        let mut srv_major;
+        let mut srv_minor;
+        let mut found_match:bool = false;
+
+        let negop: *mut bindings::icmsg_negotiate;
+
+        if buflen < super::ICMSG_HDR + (unsafe {
+            &(*(0 as *const bindings::icmsg_negotiate)).reserved 
+        } as *const _ as usize).try_into().unwrap(){
+            pr_err!("Invalid icmsg negotiate\n");
+            return false;
+        }
+
+        (*icmsghdrp).icmsgsize = 0x10;
+        negop = unsafe { *buf.offset(super::ICMSG_HDR.try_into().unwrap()) as *mut bindings::icmsg_negotiate };// ADD
+
+        icframe_major = (*negop).icframe_vercnt as u32;
+        icframe_minor = 0;
+
+        icmsg_major = (*negop).icmsg_vercnt as u32;
+        icmsg_minor = 0;
+
+        let negotiated_packet_size = super::ICMSG_NEGOTIATE_PKT_SIZE(icframe_major.try_into().unwrap(), icmsg_major.try_into().unwrap());
+        //Validate a negop packet
+        if icframe_major > bindings::IC_VERSION_NEGOTIATION_MAX_VER_COUNT ||
+            icmsg_major > bindings::IC_VERSION_NEGOTIATION_MAX_VER_COUNT ||
+                negotiated_packet_size > buflen.try_into().unwrap()
+                {
+                    pr_err!("Invalid icmsg negotiate - icframe_major: {}, icmsg_major: {}\n", icframe_major, icmsg_major);
+                    //goto fw_error; ADD LOGIC
+                }
+
+        for i in 0..fw_vercnt {
+            fw_major = fw_version[i] >> 16;
+            fw_minor = fw_version[i] & 0xFFFF;
+
+            for j in 0..(*negop).icframe_vercnt {
+                if ((*negop).icversion_data[j].major == fw_major) && ((*negop).icversion_data[j].minor == fw_minor) {
+                    //icframe_major = (*negop).icversion_data.[j].major;
+                    //icframe_minor = (*negop).icversion_data.[j].minor;
+                    found_match = true;
+                    break;
+                }
+            }
+            if found_match {
+                break;
+            }
+        }
+
+        if !found_match {
+            //goto fw_error;
+        }
+
+        found_match = false;
+
+        for i in 0..srv_vercnt {
+            srv_major = srv_version[i] >> 16;
+            srv_minor = srv_version[i] & 0xFFFF;
+
+            for j in (*negop).icframe_vercnt..((*negop).icframe_vercnt + (*negop).icmsg_vercnt) {
+                if ((*negop).icversion_data[j].major == srv_major) && ((*negop).icversion_data[j].minor == srv_minor) {
+                    icmsg_major = (*negop).icversion_data[j].major;
+                    icmsg_minor = (*negop).icversion_data[j].minor;
+                    found_match = true;
+                    break;
+                }
+            }
+            if found_match {
+                break;
+            }
+        }
+
+        found_match;
+    }
+
     // SAFETY: All buffers are valid for the duration of this call due to their lifetimes.
     let res = unsafe {
         bindings::vmbus_prep_negotiate_resp(
@@ -257,6 +351,8 @@ pub fn prep_negotiate_resp(
             &mut srv,
         )
     };
+    pr_info!("t-megha This is the fw: {} and this is the srv: {} ", fw, srv);
+    pr_info!("t-megha Calling vmbus_prep_negotiate_resp {}", res);
     if res {
         Some((fw, srv))
     } else {
