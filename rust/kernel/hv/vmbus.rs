@@ -236,6 +236,7 @@ pub fn ring_size(payload_size: usize) -> usize {
 ///
 /// On success, returns the pair of negotiated framework and service versions, and updates `buf`
 /// to hold the response.
+/*
 fn resp_fw_srv_version(negop: *mut bindings::icmsg_negotiate,
                            nego_fw_version: *mut core::ffi::c_int,
                            nego_srv_version: *mut core::ffi::c_int,
@@ -402,7 +403,7 @@ fn vmbus_prep_negotiate_resp(icmsghdrp: *mut bindings::icmsg_hdr,
                             found_match)
     }
 }
-
+*/
 pub fn prep_negotiate_resp(
     buf: &mut [u8],
     fw_versions: &[i32],
@@ -417,7 +418,7 @@ pub fn prep_negotiate_resp(
 
     // SAFETY: All buffers are valid for the duration of this call due to their lifetimes.
     let res = unsafe {
-        vmbus_prep_negotiate_resp(
+        bindings::vmbus_prep_negotiate_resp(
             buf[super::BUSPIPE_HDR_SIZE..].as_mut_ptr().cast(),
             buf.as_mut_ptr(),
             buf.len().try_into().ok()?,
