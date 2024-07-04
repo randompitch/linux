@@ -469,7 +469,7 @@ int vmbus_post_msg(void *buffer, size_t buflen, bool can_sleep)
 	}
 	return ret;
 }
-
+EXPORT_SYMBOL_GPL(vmbus_post_msg);
 /*
  * vmbus_set_event - Send an event notification to the parent
  */

@@ -28,7 +28,7 @@ pub const BUSPIPE_HDR_SIZE: usize = core::mem::size_of::<bindings::vmbuspipe_hdr
 /// received through a [`Channel`].
 pub const ICMSG_HDR: usize = BUSPIPE_HDR_SIZE + core::mem::size_of::<bindings::icmsg_hdr>();
 
-pub fn ICMSG_NEGOTIATE_PKT_SIZE(icframe_vercnt:usize, icmsg_vercnt:usize)-> usize {
+pub fn icmsg_negotiate_pkt_size(icframe_vercnt:usize, icmsg_vercnt:usize)-> usize {
     let sizeof_icmsg_negotiate = core::mem::size_of::<bindings::icmsg_negotiate>() as usize;
     let sizeof_ic_version = core::mem::size_of::<bindings::ic_version>() as usize;
     (ICMSG_HDR + sizeof_icmsg_negotiate) + (((icframe_vercnt) + (icmsg_vercnt)) * sizeof_ic_version)
@@ -98,10 +98,9 @@ impl ChannelToOpen {
         // read mode.
         unsafe { bindings::set_channel_read_mode(self.0, mode as _) };
     }
-    
+
     /*
-     * COMMENT OUT HERE
-     fn vmbus_open(newchannel: &mut bindings::vmbus_channel,
+    fn vmbus_open(newchannel: &mut bindings::vmbus_channel,
                   send_ringbuffer_size: u32,
                   recv_ringbuffer_size: u32,
                   userdata: &mut core::ffi::c_void,
@@ -119,7 +118,7 @@ impl ChannelToOpen {
             return err;
         }
         
-        err = bindings::__vmbus_open(newchannel,
+        err = Self::__vmbus_open(newchannel,
                                      userdata,
                                      userdatalen,
                                      onchannelcallback,
@@ -128,9 +127,9 @@ impl ChannelToOpen {
         if err != 0 {
             bindings::vmbus_free_ring(newchannel);
         }
+        
         err
     }
-    COMMENT END
     */
 
     /// Opens the channel.
@@ -222,9 +221,27 @@ impl<T: ForeignOwnable> ChannelCloser<T> {
     /// Manually closes the channel and returns a new channel and the data.
     ///
     /// The returned values can be reused later to re-open the channel.
+    
+    /* COMPLETE THIS
+    pub fn vmbus_free_ring(channel: *mut bindings::vmbus_channel) {
+        bindings::hv_ringbuffer_cleanup(&channel.outbound);
+        bindings::hv_ringbuffer_cleanup(&channel.inbound);
+
+        if channel.ringbuffer_page) {
+            bindings::__free_pages(channel.ringbuffer_page, getorder(channel.ringbuffer_pagecount << bindings::PAGE_SHIFT));
+            channel.ringbuffer_page = 
+    */
+
+    pub fn vmbus_close(channel: *mut bindings::vmbus_channel) {
+        let disconnect_ring:core::ffi::c_int = unsafe { bindings::vmbus_disconnect_ring(channel) } ;
+        if disconnect_ring == 0 {
+            unsafe { bindings::vmbus_free_ring(channel); }
+        }
+    }
+
     pub fn close(self) -> (ChannelToOpen, T) {
         // SAFETY: The type invariants guarantee that the channel is valid and opened.
-        unsafe { bindings::vmbus_close(self.ptr) };
+        Self::vmbus_close(self.ptr);
         pr_info!("t-megha Calling vmbus_close");
         // SAFETY: `self.context` came from a previous call to `into_foreign`. Having closed the
         // channel above, we know there are no more references to it.
@@ -304,11 +321,12 @@ impl Channel {
         unsafe {
             desc = bindings::hv_pkt_iter_first(channel);
         }
-
+        
         if desc.is_null() {
+            //pr_info!("t-megha ringbuffer read working");
             return 0;
         }
-        //pr_info!("t-megha ringbuffer read working");
+        
         //SAFETY: dereference of a raw pointer in unsafe
         unsafe {
             offset = if raw != false { 0 } else { ((*desc).offset8 << 3).into() };
@@ -321,7 +339,7 @@ impl Channel {
             //return ENOBUFS;
             return -55;
         }
-        //pr_info!("Calling Ringbuffer Read");
+        //pr_info!("t-megha Calling Ringbuffer Read");
 
         unsafe {
             bindings::memcpy(buffer, ((desc as *const u8).add(offset as usize)) as *const core::ffi::c_void, packetlen.into()); 
@@ -342,9 +360,7 @@ impl Channel {
                               requestid: *mut u64,
                               raw: bool
                               ) -> core::ffi::c_int {
-        unsafe {
-            Self::hv_ringbuffer_read(channel, buffer, bufferlen, buffer_actual_len, requestid, raw)
-        }
+        Self::hv_ringbuffer_read(channel, buffer, bufferlen, buffer_actual_len, requestid, raw)
     }
 
     pub fn vmbus_recvpacket(channel: *mut bindings::vmbus_channel,
@@ -363,15 +379,14 @@ impl Channel {
 
         // SAFETY: The channel is opened by the type invariants. All other pointers are valid for
         // the duration of this call.
-        to_result(unsafe {
-            Self::vmbus_recvpacket(
+        to_result(Self::vmbus_recvpacket(
                 self.0.get(),
                 buf.as_mut_ptr().cast(),
                 buf.len().try_into()?,
                 &mut read_len,
                 &mut request_id,
             )
-        })?;
+        )?;
 
         Ok((request_id, read_len as _))
     }
@@ -398,7 +413,7 @@ impl Channel {
             trans_id: core::u64::MAX - 1,
         };
         let aligned_data: u64 = 0;
-        pr_info!("t-megha sendpacket_getid called from Rust");
+        //pr_info!("t-megha sendpacket_getid called from Rust");
         let bufferlist:&[bindings::kvec; 3] = &[
             bindings::kvec {
                 iov_base: &mut desc as *mut bindings::vmpacket_descriptor as *mut core::ffi::c_void,
@@ -428,9 +443,7 @@ impl Channel {
                         type_: bindings::vmbus_packet_type,
                         flags: u32) -> core::ffi::c_int {
         //pr_info!("t-megha SENDPACKET called successfully from here.");
-        unsafe {
-            Self::vmbus_sendpacket_getid(channel, buffer, bufferlen, requestid, core::ptr::null_mut(), type_, flags)
-        }
+        Self::vmbus_sendpacket_getid(channel, buffer, bufferlen, requestid, core::ptr::null_mut(), type_, flags) 
     }
 
     /// Sends a packet on the channel.

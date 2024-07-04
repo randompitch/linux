@@ -1344,6 +1344,11 @@ struct hv_ring_buffer_debug_info {
 int hv_ringbuffer_get_debuginfo(struct hv_ring_buffer_info *ring_info,
 				struct hv_ring_buffer_debug_info *debug_info);
 
+int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
+                       struct page *pages, u32 page_cnt, u32 max_pkt_size);
+
+void hv_ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info);
+
 bool hv_ringbuffer_spinlock_busy(struct vmbus_channel *channel);
 
 int hv_ringbuffer_write(struct vmbus_channel *channel,

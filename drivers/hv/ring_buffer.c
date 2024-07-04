@@ -244,6 +244,7 @@ int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hv_ringbuffer_init);
 
 /* Cleanup the ring buffer. */
 void hv_ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info)
@@ -257,6 +258,7 @@ void hv_ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info)
 	ring_info->pkt_buffer = NULL;
 	ring_info->pkt_buffer_size = 0;
 }
+EXPORT_SYMBOL_GPL(hv_ringbuffer_cleanup);
 
 /*
  * Check if the ring buffer spinlock is available to take or not; used on

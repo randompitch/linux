@@ -14,6 +14,8 @@ use crate::{
     ThisModule,
 };
 
+use core::mem::offset_of;
+
 use kernel::prelude::*;
 /// A registration of a vmbus driver.
 pub type Registration<T> = driver::Registration<Adapter<T>>;
@@ -234,6 +236,173 @@ pub fn ring_size(payload_size: usize) -> usize {
 ///
 /// On success, returns the pair of negotiated framework and service versions, and updates `buf`
 /// to hold the response.
+fn resp_fw_srv_version(negop: *mut bindings::icmsg_negotiate,
+                           nego_fw_version: *mut core::ffi::c_int,
+                           nego_srv_version: *mut core::ffi::c_int,
+                           icframe_major: i32,
+                           icframe_minor: i32,
+                           icmsg_major: i32,
+                           icmsg_minor: i32,
+                           found_match: bool) -> bool {
+        if !found_match {
+            unsafe {
+                (*negop).icframe_vercnt = 0;
+                (*negop).icmsg_vercnt = 0;
+            }
+        }
+        else {
+            unsafe {
+                (*negop).icframe_vercnt = 1;
+                (*negop).icmsg_vercnt = 1;
+            }
+        }
+        pr_info!("t-megha response working.");
+
+        unsafe {
+            if *nego_fw_version != 0 {
+                *nego_fw_version = (icframe_major << 16) | icframe_minor;
+            }
+
+            if *nego_srv_version != 0 {
+                *nego_srv_version = (icmsg_major << 16) | icmsg_minor;
+            }
+        }
+
+        let icversion_data = unsafe { (*negop).icversion_data.as_mut_slice(((*negop).icframe_vercnt + (*negop).icmsg_vercnt) as usize) };
+
+        icversion_data[0].major = icframe_major as u16;
+        icversion_data[0].minor = icframe_minor as u16;
+        icversion_data[1].major = icmsg_major as u16;
+        icversion_data[1].minor = icmsg_major as u16;
+
+        found_match
+}
+
+fn vmbus_prep_negotiate_resp(icmsghdrp: *mut bindings::icmsg_hdr,
+                                 buf: *mut u8,
+                                 buflen: u32,
+                                 fw_version: *const core::ffi::c_int,
+                                 fw_vercnt: core::ffi::c_int,
+                                 srv_version: *const core::ffi::c_int,
+                                 srv_vercnt: core::ffi::c_int,
+                                 nego_fw_version: *mut core::ffi::c_int,
+                                 nego_srv_version: *mut core::ffi::c_int
+                                 ) -> bool {
+        let mut icframe_major: i32;
+        let mut icframe_minor: i32;
+        let mut icmsg_major: i32;
+        let mut icmsg_minor: i32;
+        let mut fw_major;
+        let mut fw_minor;
+        let mut srv_major;
+        let mut srv_minor;
+        let mut found_match:bool = false;
+
+        let negop: *mut bindings::icmsg_negotiate;
+
+        unsafe {
+            /* Check that there's enough space for icframe_vercnt, icmsg_vercnt */
+        if buflen < (super::ICMSG_HDR + offset_of!(bindings::icmsg_negotiate, reserved)).try_into().unwrap() {
+            pr_err!("Invalid icmsg negotiate\n");
+            return false;
+        }
+
+        unsafe {
+            (*icmsghdrp).icmsgsize = 0x10;
+            negop = *buf.offset(super::ICMSG_HDR.try_into().unwrap()) as *mut bindings::icmsg_negotiate;
+
+            icframe_major = i32::from((*negop).icframe_vercnt);
+            icframe_minor = 0;
+
+            icmsg_major = i32::from((*negop).icmsg_vercnt);
+            icmsg_minor = 0;
+        }
+        //Validate a negop packet
+        let negotiated_packet_size = super::icmsg_negotiate_pkt_size(icframe_major.try_into().unwrap(), icmsg_major.try_into().unwrap());
+
+        if icframe_major > bindings::IC_VERSION_NEGOTIATION_MAX_VER_COUNT.try_into().unwrap() ||
+            icmsg_major > bindings::IC_VERSION_NEGOTIATION_MAX_VER_COUNT.try_into().unwrap() ||
+                negotiated_packet_size > buflen.try_into().unwrap()
+                {
+                    pr_err!("Invalid icmsg negotiate - icframe_major: {}, icmsg_major: {}\n", icframe_major, icmsg_major);
+                    return resp_fw_srv_version(negop,
+                                               nego_fw_version,
+                                               nego_srv_version,
+                                               icframe_major,
+                                               icframe_minor,
+                                               icmsg_major,
+                                               icmsg_minor,
+                                               found_match);
+                }
+
+        /*
+         * Select the framework version number we will support
+         */
+
+        let icframe_vercnt = (*negop).icframe_vercnt;
+        let icmsg_vercnt = (*negop).icmsg_vercnt;
+        let icversion_data = unsafe { (*negop).icversion_data.as_slice((icframe_vercnt + icmsg_vercnt) as usize) };
+
+        for i in 0..fw_vercnt as isize {
+            let fw_version_val = unsafe { *fw_version.offset(i) };
+            fw_major = fw_version_val >> 16;
+            fw_minor = fw_version_val & 0xFFFF;
+
+            for j in 0..(*negop).icframe_vercnt as usize {
+                if i32::from(icversion_data[j].major) == fw_major && i32::from(icversion_data[j].minor) == fw_minor {
+                    icframe_major = i32::from(icversion_data[j].major);
+                    icframe_minor = i32::from(icversion_data[j].minor);
+                    found_match = true;
+                    break;
+                }
+            }
+            if found_match {
+                break;
+            }
+        }
+
+        if !found_match {
+            return resp_fw_srv_version(negop,
+                                       nego_fw_version,
+                                       nego_srv_version,
+                                       icframe_major,
+                                       icframe_minor,
+                                       icmsg_major,
+                                       icmsg_minor,
+                                       found_match);
+        }
+
+        found_match = false;
+        for i in 0..srv_vercnt as isize {
+            let srv_version_val = unsafe { *srv_version.offset(i) };
+            srv_major = srv_version_val >> 16;
+            srv_minor = srv_version_val & 0xFFFF;
+
+            for j in ((*negop).icframe_vercnt as usize)..((*negop).icframe_vercnt + (*negop).icmsg_vercnt) as usize {
+                if i32::from(icversion_data[j].major) == srv_major && i32::from(icversion_data[j].minor) == srv_minor {
+                    icmsg_major = i32::from(icversion_data[j].major);
+                    icmsg_minor = i32::from(icversion_data[j].minor);
+                    found_match = true;
+                    break;
+                }
+            }
+            if found_match {
+                break;
+            }
+        }
+        pr_info!("t-megha Prep_negotiate working");
+
+        resp_fw_srv_version(negop,
+                            nego_fw_version,
+                            nego_srv_version,
+                            icframe_major,
+                            icframe_minor,
+                            icmsg_major,
+                            icmsg_minor,
+                            found_match)
+    }
+}
+
 pub fn prep_negotiate_resp(
     buf: &mut [u8],
     fw_versions: &[i32],
@@ -246,100 +415,9 @@ pub fn prep_negotiate_resp(
         return None;
     }
 
-    fn vmbus_prep_negotiate_resp(icmsghdrp: *mut bindings::icmsg_hdr,
-                                 buf: *mut u8,
-                                 buflen: u32,
-                                 fw_version: *const core::ffi::c_int,
-                                 fw_vercnt: core::ffi::c_int,
-                                 srv_version: *const core::ffi::c_int,
-                                 srv_vercnt: core::ffi::c_int,
-                                 nego_fw_version: *mut core::ffi::c_int,
-                                 nego_srv_version: *mut core::ffi::c_int
-                                 ) -> bool {
-        let mut icframe_major;
-        let mut icframe_minor;
-        let mut icmsg_major;
-        let mut icmsg_minor;
-        let mut fw_major;
-        let mut fw_minor;
-        let mut srv_major;
-        let mut srv_minor;
-        let mut found_match:bool = false;
-
-        let negop: *mut bindings::icmsg_negotiate;
-
-        if buflen < super::ICMSG_HDR + (unsafe {
-            &(*(0 as *const bindings::icmsg_negotiate)).reserved 
-        } as *const _ as usize).try_into().unwrap(){
-            pr_err!("Invalid icmsg negotiate\n");
-            return false;
-        }
-
-        (*icmsghdrp).icmsgsize = 0x10;
-        negop = unsafe { *buf.offset(super::ICMSG_HDR.try_into().unwrap()) as *mut bindings::icmsg_negotiate };// ADD
-
-        icframe_major = (*negop).icframe_vercnt as u32;
-        icframe_minor = 0;
-
-        icmsg_major = (*negop).icmsg_vercnt as u32;
-        icmsg_minor = 0;
-
-        let negotiated_packet_size = super::ICMSG_NEGOTIATE_PKT_SIZE(icframe_major.try_into().unwrap(), icmsg_major.try_into().unwrap());
-        //Validate a negop packet
-        if icframe_major > bindings::IC_VERSION_NEGOTIATION_MAX_VER_COUNT ||
-            icmsg_major > bindings::IC_VERSION_NEGOTIATION_MAX_VER_COUNT ||
-                negotiated_packet_size > buflen.try_into().unwrap()
-                {
-                    pr_err!("Invalid icmsg negotiate - icframe_major: {}, icmsg_major: {}\n", icframe_major, icmsg_major);
-                    //goto fw_error; ADD LOGIC
-                }
-
-        for i in 0..fw_vercnt {
-            fw_major = fw_version[i] >> 16;
-            fw_minor = fw_version[i] & 0xFFFF;
-
-            for j in 0..(*negop).icframe_vercnt {
-                if ((*negop).icversion_data[j].major == fw_major) && ((*negop).icversion_data[j].minor == fw_minor) {
-                    //icframe_major = (*negop).icversion_data.[j].major;
-                    //icframe_minor = (*negop).icversion_data.[j].minor;
-                    found_match = true;
-                    break;
-                }
-            }
-            if found_match {
-                break;
-            }
-        }
-
-        if !found_match {
-            //goto fw_error;
-        }
-
-        found_match = false;
-
-        for i in 0..srv_vercnt {
-            srv_major = srv_version[i] >> 16;
-            srv_minor = srv_version[i] & 0xFFFF;
-
-            for j in (*negop).icframe_vercnt..((*negop).icframe_vercnt + (*negop).icmsg_vercnt) {
-                if ((*negop).icversion_data[j].major == srv_major) && ((*negop).icversion_data[j].minor == srv_minor) {
-                    icmsg_major = (*negop).icversion_data[j].major;
-                    icmsg_minor = (*negop).icversion_data[j].minor;
-                    found_match = true;
-                    break;
-                }
-            }
-            if found_match {
-                break;
-            }
-        }
-
-        found_match;
-    }
-
     // SAFETY: All buffers are valid for the duration of this call due to their lifetimes.
     let res = unsafe {
-        bindings::vmbus_prep_negotiate_resp(
+        vmbus_prep_negotiate_resp(
             buf[super::BUSPIPE_HDR_SIZE..].as_mut_ptr().cast(),
             buf.as_mut_ptr(),
             buf.len().try_into().ok()?,
