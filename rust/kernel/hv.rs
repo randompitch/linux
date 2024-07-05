@@ -28,7 +28,7 @@ pub const BUSPIPE_HDR_SIZE: usize = core::mem::size_of::<bindings::vmbuspipe_hdr
 /// received through a [`Channel`].
 pub const ICMSG_HDR: usize = BUSPIPE_HDR_SIZE + core::mem::size_of::<bindings::icmsg_hdr>();
 
-pub fn icmsg_negotiate_pkt_size(icframe_vercnt:usize, icmsg_vercnt:usize)-> usize {
+pub fn icmsg_negotiate_pkt_size(icframe_vercnt: usize, icmsg_vercnt: usize) -> usize {
     let sizeof_icmsg_negotiate = core::mem::size_of::<bindings::icmsg_negotiate>() as usize;
     let sizeof_ic_version = core::mem::size_of::<bindings::ic_version>() as usize;
     (ICMSG_HDR + sizeof_icmsg_negotiate) + (((icframe_vercnt) + (icmsg_vercnt)) * sizeof_ic_version)
@@ -230,18 +230,20 @@ impl<T: ForeignOwnable> ChannelCloser<T> {
         if channel.ringbuffer_page) {
             bindings::__free_pages(channel.ringbuffer_page, getorder(channel.ringbuffer_pagecount << bindings::PAGE_SHIFT));
             channel.ringbuffer_page = 
-    */
 
     pub fn vmbus_close(channel: *mut bindings::vmbus_channel) {
-        let disconnect_ring:core::ffi::c_int = unsafe { bindings::vmbus_disconnect_ring(channel) } ;
+        let disconnect_ring: core::ffi::c_int = unsafe { bindings::vmbus_disconnect_ring(channel) };
         if disconnect_ring == 0 {
-            unsafe { bindings::vmbus_free_ring(channel); }
+            unsafe { 
+                bindings::vmbus_free_ring(channel); 
+            }
         }
     }
+    */
 
     pub fn close(self) -> (ChannelToOpen, T) {
         // SAFETY: The type invariants guarantee that the channel is valid and opened.
-        Self::vmbus_close(self.ptr);
+        unsafe { bindings::vmbus_close(self.ptr) };
         pr_info!("t-megha Calling vmbus_close");
         // SAFETY: `self.context` came from a previous call to `into_foreign`. Having closed the
         // channel above, we know there are no more references to it.
@@ -329,7 +331,11 @@ impl Channel {
         
         //SAFETY: dereference of a raw pointer in unsafe
         unsafe {
-            offset = if raw != false { 0 } else { ((*desc).offset8 << 3).into() };
+            offset = if raw != false { 
+                0 
+            } else {
+                ((*desc).offset8 << 3).into()
+            };
             packetlen = ((*desc).len8 << 3) as u32 - offset;
             *buffer_actual_len = packetlen;
             *requestid = (*desc).trans_id;
