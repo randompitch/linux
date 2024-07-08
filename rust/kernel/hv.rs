@@ -162,7 +162,7 @@ impl ChannelToOpen {
                 context_ptr as _,
             )
         })?;
-        pr_info!("t-megha Calling vmbus_open");
+        //pr_info!("t-megha Calling vmbus_open");
         core::mem::forget(self);
         guard.dismiss();
         // INVARIANT: We are transferring the ownership of the refcount increment to the
@@ -230,7 +230,7 @@ impl<T: ForeignOwnable> ChannelCloser<T> {
         if channel.ringbuffer_page) {
             bindings::__free_pages(channel.ringbuffer_page, getorder(channel.ringbuffer_pagecount << bindings::PAGE_SHIFT));
             channel.ringbuffer_page = 
-
+*/
     pub fn vmbus_close(channel: *mut bindings::vmbus_channel) {
         let disconnect_ring: core::ffi::c_int = unsafe { bindings::vmbus_disconnect_ring(channel) };
         if disconnect_ring == 0 {
@@ -239,11 +239,10 @@ impl<T: ForeignOwnable> ChannelCloser<T> {
             }
         }
     }
-    */
 
     pub fn close(self) -> (ChannelToOpen, T) {
         // SAFETY: The type invariants guarantee that the channel is valid and opened.
-        unsafe { bindings::vmbus_close(self.ptr) };
+        unsafe { Self::vmbus_close(self.ptr) };
         pr_info!("t-megha Calling vmbus_close");
         // SAFETY: `self.context` came from a previous call to `into_foreign`. Having closed the
         // channel above, we know there are no more references to it.

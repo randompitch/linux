@@ -98,6 +98,7 @@ impl<T: Driver> driver::DriverOps for Adapter<T> {
         // SAFETY: By the safety requirements of this function (defined in the trait definition),
         // `reg` is non-null and valid.
         let drv = unsafe { &mut *reg };
+        pr_info!("t-megha something is being called");
 
         drv.name = name.as_char_ptr();
         drv.probe = Some(Self::probe_callback);
@@ -107,7 +108,6 @@ impl<T: Driver> driver::DriverOps for Adapter<T> {
         if let Some(t) = T::ID_TABLE {
             drv.id_table = t.as_ref();
         }
-        pr_info!("t-megha A driver is being registered -> {:?}", drv.name);
         // SAFETY:
         //   - `drv` lives at least until the call to `vmbus_driver_unregister()` returns.
         //   - `name` pointer has static lifetime.
@@ -301,7 +301,6 @@ fn vmbus_prep_negotiate_resp(icmsghdrp: *mut bindings::icmsg_hdr,
 
         let negop: *mut bindings::icmsg_negotiate;
 
-        pr_info!("t-megha Entering vmbus_prep_negotiate_resp");
         unsafe {
             /* Check that there's enough space for icframe_vercnt, icmsg_vercnt */
             if buflen < (super::ICMSG_HDR + offset_of!(bindings::icmsg_negotiate, reserved)).try_into().unwrap() {
@@ -310,9 +309,6 @@ fn vmbus_prep_negotiate_resp(icmsghdrp: *mut bindings::icmsg_hdr,
             }
 
             (*icmsghdrp).icmsgsize = 0x10;
-            pr_info!("t-megha Value of *buf.offset -> {}", *buf.offset(super::ICMSG_HDR.try_into().unwrap()));
-            pr_info!("t-megha Value of &buf.offset -> {:?}", buf.offset(super::ICMSG_HDR.try_into().unwrap()));
-            //return true;
             negop = unsafe { *buf.offset(super::ICMSG_HDR.try_into().unwrap()) as *mut bindings::icmsg_negotiate };
 
             //TESTING
@@ -425,7 +421,7 @@ pub fn prep_negotiate_resp(
     // SAFETY: All buffers are valid for the duration of this call due to their lifetimes.
     let res = unsafe {
         bindings::vmbus_prep_negotiate_resp(
-            buf[super::BUSPIPE_HDR_SIZE..super::BUSPIPE_HDR_SIZE + 20].as_mut_ptr().cast(),
+            buf[super::BUSPIPE_HDR_SIZE..].as_mut_ptr().cast(),
             buf.as_mut_ptr(),
             buf.len().try_into().ok()?,
             fw_versions.as_ptr(),
@@ -441,7 +437,7 @@ pub fn prep_negotiate_resp(
         fw,
         srv
         );
-    //pr_info!("t-megha Calling vmbus_prep_negotiate_resp {}", res);
+    pr_info!("t-megha Calling vmbus_prep_negotiate_resp {}", res);
     if res {
         Some((fw, srv))
     } else {
