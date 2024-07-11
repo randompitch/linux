@@ -586,6 +586,14 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 }
 EXPORT_SYMBOL_GPL(vmbus_establish_gpadl);
 
+int vmbus_establish_gpadl_for_binding_gen(struct vmbus_channel *channel, void *kbuffer,
+                          u32 size, u32 send_offset, struct vmbus_gpadl *gpadl)
+{
+        return __vmbus_establish_gpadl(channel, HV_GPADL_RING, kbuffer, size,
+                                       send_offset, gpadl);
+}
+EXPORT_SYMBOL_GPL(vmbus_establish_gpadl_for_binding_gen);
+
 /**
  * request_arr_init - Allocates memory for the requestor array. Each slot
  * keeps track of the next available slot in the array. Initially, each
@@ -639,6 +647,14 @@ static int vmbus_alloc_requestor(struct vmbus_requestor *rqstor, u32 size)
 
 	return 0;
 }
+
+/* EDIT THIS
+vmbus_alloc_requestor_for_binding_gen(struct vmbus_requestor *rqstor, u32 size)
+{
+	return vmbus_alloc_requestor(vmbus_requestor, size);
+}
+EXPORT_SYMBOL(vmbus_alloc_requestor_for_binding_gen);
+*/
 
 /*
  * vmbus_free_requestor - Frees memory allocated for @rqstor

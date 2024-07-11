@@ -28,11 +28,13 @@ pub const BUSPIPE_HDR_SIZE: usize = core::mem::size_of::<bindings::vmbuspipe_hdr
 /// received through a [`Channel`].
 pub const ICMSG_HDR: usize = BUSPIPE_HDR_SIZE + core::mem::size_of::<bindings::icmsg_hdr>();
 
+/*
 pub fn icmsg_negotiate_pkt_size(icframe_vercnt: usize, icmsg_vercnt: usize) -> usize {
     let sizeof_icmsg_negotiate = core::mem::size_of::<bindings::icmsg_negotiate>() as usize;
     let sizeof_ic_version = core::mem::size_of::<bindings::ic_version>() as usize;
     (ICMSG_HDR + sizeof_icmsg_negotiate) + (((icframe_vercnt) + (icmsg_vercnt)) * sizeof_ic_version)
 }
+*/
 
 /// Specifies the type of a packet to be sent via [`Channel::send_packet`] and variants.
 #[repr(u32)]
@@ -100,14 +102,60 @@ impl ChannelToOpen {
     }
 
     /*
-    fn vmbus_open(newchannel: &mut bindings::vmbus_channel,
+    fn __vmbus_open (newchannel: *mut bindings::vmbus_channel,
+                     userdata: *mut core::ffi::c_void,
+                     userdatalen: u32,
+                     onchannelcallback: bindings::onchannel_t,
+                     context: *mut core::ffi:c_void
+                     ) -> core::ffi::c_int {
+        let open_msg: *mut bindings::vmbus_channel_open_channel;
+        let open_info: *mut bindings::vmbus_channel_msginfo = core::ptr::null_mut();
+        let page: *mut bindings::page = newchannel.ringbuffer_page;
+        let mut send_pages: u32;
+        let mut recv_pages: u32;
+        let flags: u64;
+        let err: core::ffi::c_int;
+
+        if (userdatalen > bindings::MAX_USER_DEFINED_BYTES) {
+            return -(bindings::EINVAL as i32);
+        }
+
+        send_pages = newchannel.ringbuffer_send_offset;
+        recv_pages = newchannel.ringbuffer_pagecount - send_pages;
+
+        if newchannel.state != vmbus_channel_state_CHANNEL_OPEN_STATE {
+            return -(bindings::EINVAL as i32);
+        }
+
+        if newchannel.rqstor_size != 0 {
+            if bindings::vmbus_alloc_requestor_for_binding_gen(&newchannel.requestor, newchannel.rqstor_size) != 0 {
+                return -(bindings:: ENOMEM as i32);
+            }
+        }
+
+        newchannel.state = bindings::vmbus_channel_state_CHANNEL_OPENING_STATE;
+        newchannel.onchannel_callback = onchannelcallback;
+        newchannel.channel_callback_context = context;
+
+        if newchannel.max_pkt_size == 0 {
+            newchannel.max_pkt_size = bindings::VMBUS_DEFAULT_MAX_PKT_SIZE;
+        }
+
+        newchannel.ringbuffer_gpadlhandle.gpadl_handle = 0;
+        
+        err = bindings::vmbus_establish_gpadl_for_binding_gen(newchannel, hv_gpadl_type_HV_GPADL_RING, 
+
+
+    }
+
+    fn vmbus_open(newchannel: *mut bindings::vmbus_channel,
                   send_ringbuffer_size: u32,
                   recv_ringbuffer_size: u32,
-                  userdata: &mut core::ffi::c_void,
+                  userdata: *mut core::ffi::c_void,
                   userdatalen: u32,
                   onchannelcallback: bindings::onchannel_t,
-                  context: &mut core::ffi::c_void
-                  ) -> i32 {
+                  context: *mut core::ffi::c_void
+                  ) -> core::ffi::c_int {
         let mut err: i32 = 0;
 
         err = bindings::vmbus_alloc_ring(newchannel,

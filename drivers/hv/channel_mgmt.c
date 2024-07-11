@@ -250,6 +250,7 @@ bool vmbus_prep_negotiate_resp(struct icmsg_hdr *icmsghdrp, u8 *buf,
 	icmsg_major = negop->icmsg_vercnt;
 	icmsg_minor = 0;
 
+	pr_info("t-megha icframe_major = %u and icmsg_major = %u", icframe_major, icmsg_major);
 	/* Validate negop packet */
 	if (icframe_major > IC_VERSION_NEGOTIATION_MAX_VER_COUNT ||
 	    icmsg_major > IC_VERSION_NEGOTIATION_MAX_VER_COUNT ||
@@ -263,6 +264,11 @@ bool vmbus_prep_negotiate_resp(struct icmsg_hdr *icmsghdrp, u8 *buf,
 	 * Select the framework version number we will
 	 * support.
 	 */
+	/*test starts here
+	for(i = 0; i < negop->icframe_vercnt + negop->icmsg_vercnt; i++) {
+		pr_info("t-megha major-> %u, minor-> %u", negop->icversion_data[i].major, negop->icversion_data[i].minor);
+	}
+	*/
 
 	for (i = 0; i < fw_vercnt; i++) {
 		fw_major = (fw_version[i] >> 16);
@@ -273,6 +279,7 @@ bool vmbus_prep_negotiate_resp(struct icmsg_hdr *icmsghdrp, u8 *buf,
 			    (negop->icversion_data[j].minor == fw_minor)) {
 				icframe_major = negop->icversion_data[j].major;
 				icframe_minor = negop->icversion_data[j].minor;
+				pr_info("t-megha icframe major:: %u, minor:: %u", negop->icversion_data[j].major, negop->icversion_data[j].minor);
 				found_match = true;
 				break;
 			}
@@ -297,9 +304,9 @@ bool vmbus_prep_negotiate_resp(struct icmsg_hdr *icmsghdrp, u8 *buf,
 
 			if ((negop->icversion_data[j].major == srv_major) &&
 				(negop->icversion_data[j].minor == srv_minor)) {
-
 				icmsg_major = negop->icversion_data[j].major;
 				icmsg_minor = negop->icversion_data[j].minor;
+				pr_info("t-megha icmsg major:: %u, minor:: %u", negop->icversion_data[j].major, negop->icversion_data[j].minor);
 				found_match = true;
 				break;
 			}
@@ -313,6 +320,7 @@ bool vmbus_prep_negotiate_resp(struct icmsg_hdr *icmsghdrp, u8 *buf,
 	 * Respond with the framework and service
 	 * version numbers we can support.
 	 */
+	pr_info("t-megha printing from A icframe_major: %u, icframe_minor: %u, icmsg_major: %u, icmsg_minor: %u", icframe_major, icframe_minor, icmsg_major, icmsg_minor);
 
 fw_error:
 	if (!found_match) {
@@ -323,12 +331,19 @@ fw_error:
 		negop->icmsg_vercnt = 1;
 	}
 
+	pr_info("t-megha printing from B icframe_major: %u, icframe_minor: %u, icmsg_major: %u, icmsg_minor: %u", icframe_major, icframe_minor, icmsg_major, icmsg_minor);
+
 	if (nego_fw_version)
 		*nego_fw_version = (icframe_major << 16) | icframe_minor;
 
 	if (nego_srv_version)
 		*nego_srv_version = (icmsg_major << 16) | icmsg_minor;
 
+	if (nego_fw_version)
+		pr_info("t-megha nego_fw is : %u", *nego_fw_version);
+
+        if (nego_srv_version)
+		pr_info("t-megha nego_srv is: %u", *nego_srv_version);
 	negop->icversion_data[0].major = icframe_major;
 	negop->icversion_data[0].minor = icframe_minor;
 	negop->icversion_data[1].major = icmsg_major;

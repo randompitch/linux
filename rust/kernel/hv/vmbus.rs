@@ -15,7 +15,7 @@ use crate::{
 };
 
 use core::mem::offset_of;
-
+use super::Vec;
 use kernel::prelude::*;
 /// A registration of a vmbus driver.
 pub type Registration<T> = driver::Registration<Adapter<T>>;
@@ -229,6 +229,18 @@ pub fn ring_size(payload_size: usize) -> usize {
     unsafe { bindings::VMBUS_RING_SIZE(payload_size) }
 }
 
+pub struct icmsg_negotiate_rust {
+    icframe_vercnt: u16,
+    icmsg_vercnt: u16,
+    reserved: u32
+}
+
+pub fn icmsg_negotiate_pkt_size(icframe_vercnt: usize, icmsg_vercnt: usize) -> usize {
+    let sizeof_icmsg_negotiate = core::mem::size_of::<bindings::icmsg_negotiate>() as usize;
+    let sizeof_ic_version = core::mem::size_of::<bindings::ic_version>() as usize;
+    (super::ICMSG_HDR + sizeof_icmsg_negotiate) + (((icframe_vercnt) + (icmsg_vercnt)) * sizeof_ic_version)
+}
+
 /// Creates a response for a `negotiate` resquest.
 ///
 /// `fw_versions` is a slice containing all supported framework versions.
@@ -237,70 +249,72 @@ pub fn ring_size(payload_size: usize) -> usize {
 /// On success, returns the pair of negotiated framework and service versions, and updates `buf`
 /// to hold the response.
 
-fn resp_fw_srv_version(negop: *mut bindings::icmsg_negotiate,
-                           nego_fw_version: *mut core::ffi::c_int,
-                           nego_srv_version: *mut core::ffi::c_int,
-                           icframe_major: i32,
-                           icframe_minor: i32,
-                           icmsg_major: i32,
-                           icmsg_minor: i32,
+fn resp_fw_srv_version(negop: &mut bindings::icmsg_negotiate,
+                       ic_version_data: &mut Vec<bindings::ic_version>,
+                           nego_fw_version: &mut i32,
+                           nego_srv_version: &mut i32,
+                           icframe_major: u16,
+                           icframe_minor: u16,
+                           icmsg_major: u16,
+                           icmsg_minor: u16,
                            found_match: bool) -> bool {
         unsafe {
             if !found_match {
-                (*negop).icframe_vercnt = 0;
-                (*negop).icmsg_vercnt = 0;
+                negop.icframe_vercnt = 0;
+                negop.icmsg_vercnt = 0;
             }
             else {
-                (*negop).icframe_vercnt = 1;
-                (*negop).icmsg_vercnt = 1;
+                negop.icframe_vercnt = 1;
+                negop.icmsg_vercnt = 1;
             }
         
             pr_info!("t-megha response working.");
-        
-            if *nego_fw_version != 0 {
-                *nego_fw_version = (icframe_major << 16) | icframe_minor;
+
+            *nego_fw_version = ((icframe_major as i32) << 16) | (icframe_minor as i32);
+            *nego_srv_version = ((icmsg_major as i32) << 16) | (icmsg_minor as i32);
+
+            /*
+            if nego_fw_version.is_null() == false {
+                *nego_fw_version = ((icframe_major as u32) << 16) | (icframe_minor as u32);
             }
         
-            if *nego_srv_version != 0 {
-                *nego_srv_version = (icmsg_major << 16) | icmsg_minor;
+            if nego_srv_version.is_null() == false {
+                *nego_srv_version = ((icmsg_major as u32) << 16) | (icmsg_minor as u32);
             }
         
             let icframe_vercnt = (*negop).icframe_vercnt;
             let icmsg_vercnt = (*negop).icmsg_vercnt;
             let icversion_data = (*negop).icversion_data.as_mut_slice((icframe_vercnt + icmsg_vercnt) as usize);
             //let icversion_data = (*negop).icversion_data.as_mut_slice(((*negop).icframe_vercnt + (*negop).icmsg_vercnt) as usize);
+            */
 
-            icversion_data[0].major = icframe_major as u16;
-            icversion_data[0].minor = icframe_minor as u16;
-            icversion_data[1].major = icmsg_major as u16;
-            icversion_data[1].minor = icmsg_major as u16;
-        
+            ic_version_data[0].major = icframe_major as u16;
+            ic_version_data[0].minor = icframe_minor as u16;
+            ic_version_data[1].major = icmsg_major as u16;
+            ic_version_data[1].minor = icmsg_major as u16;
+       
+            //TODO dump the negop data back into the buffer
             found_match
         }
 }
 
-fn vmbus_prep_negotiate_resp(icmsghdrp: *mut bindings::icmsg_hdr,
-                                 buf: *mut u8,
-                                 buflen: u32,
-                                 fw_version: *const core::ffi::c_int,
-                                 fw_vercnt: core::ffi::c_int,
-                                 srv_version: *const core::ffi::c_int,
-                                 srv_vercnt: core::ffi::c_int,
-                                 nego_fw_version: *mut core::ffi::c_int,
-                                 nego_srv_version: *mut core::ffi::c_int
-                                 ) -> bool {
-        let mut icframe_major: i32;
-        let mut icframe_minor: i32;
-        let mut icmsg_major: i32;
-        let mut icmsg_minor: i32;
+fn vmbus_prep_negotiate_resp(icmsg_hdr: &mut bindings::icmsg_hdr,
+                             buf: &mut [u8],
+                             fw_versions: &[i32],
+                             srv_versions: &[i32],
+                             nego_fw_version: &mut i32,
+                             nego_srv_version: &mut i32
+                             ) -> bool {
+
+        let buflen = buf.len();
         let mut fw_major;
         let mut fw_minor;
         let mut srv_major;
         let mut srv_minor;
         let mut found_match:bool = false;
 
-        let negop: *mut bindings::icmsg_negotiate;
-
+        let mut negop: bindings::icmsg_negotiate = Default::default();
+        
         pr_info!("t-megha Entering vmbus_prep_negotiate_resp");
         unsafe {
             /* Check that there's enough space for icframe_vercnt, icmsg_vercnt */
@@ -309,30 +323,60 @@ fn vmbus_prep_negotiate_resp(icmsghdrp: *mut bindings::icmsg_hdr,
                 return false;
             }
 
-            (*icmsghdrp).icmsgsize = 0x10;
-            pr_info!("t-megha Value of *buf.offset -> {}", *buf.offset(super::ICMSG_HDR.try_into().unwrap()));
-            pr_info!("t-megha Value of &buf.offset -> {:?}", buf.offset(super::ICMSG_HDR.try_into().unwrap()));
-            //return true;
-            negop = unsafe { *buf.offset(super::ICMSG_HDR.try_into().unwrap()) as *mut bindings::icmsg_negotiate };
+            icmsg_hdr.icmsgsize = 0x10;
+            
+            let mut start_offset = super::ICMSG_HDR;
+            negop.icframe_vercnt = unsafe {
+                let end_offset = start_offset + core::mem::size_of::<u16>();
+                let ptr = buf[start_offset..end_offset].as_ptr() as *const u16;
+                start_offset = end_offset;
+                *ptr
+            };
+            let mut icframe_major = negop.icframe_vercnt;
+            let mut icframe_minor = 0;
 
-            //TESTING
-            if negop.is_null() {
-                pr_info!("t-megha negop is NULL\n");
-                return false;
+            negop.icmsg_vercnt = unsafe {
+                let end_offset = start_offset + core::mem::size_of::<u16>();
+                let ptr = buf[start_offset..end_offset].as_ptr() as *const u16;
+                start_offset = end_offset;
+                *ptr
+            };
+            let mut icmsg_major = negop.icmsg_vercnt;
+            let mut icmsg_minor = 0;
+        
+            negop.reserved = unsafe {
+                let end_offset = start_offset + core::mem::size_of::<u32>();
+                let ptr = buf[start_offset..end_offset].as_ptr() as *const u32;
+                start_offset = end_offset;
+                *ptr
+            };
+
+            let total_ic_versions = negop.icframe_vercnt + negop.icmsg_vercnt;
+            let mut ic_version_data: Vec<bindings::ic_version> = Vec::new();
+            //let mut ic_version_data: Vec<bindings::ic_version> = vec![];
+            let ptr = buf[start_offset..total_ic_versions as usize].as_ptr() as *const bindings::ic_version;
+            unsafe {
+                for i in 0..total_ic_versions {
+                    ic_version_data.try_push(ptr.add(i.into()).read());
+                }
             }
 
-            icframe_major = i32::from((*negop).icframe_vercnt);
-            icframe_minor = 0;
-
-            icmsg_major = i32::from((*negop).icmsg_vercnt);
-            icmsg_minor = 0;
-        
+            for version in &ic_version_data{
+                let ver_major = version.major;
+                let ver_minor = version.minor;
+                pr_info!("t-megha ic_version: major={}, minor={}", ver_major, ver_minor);
+            }
+            //pr_info!("t-megha icframe_vercnt: {}, icmsg_vercnt: {}" , icframe_major, icmsg_major);
+            pr_info!("t-megha printing from A icframe_major: {}, icframe_minor: {}, icmsg_major: {}, icmsg_minor: {}", icframe_major, icframe_minor, icmsg_major, icmsg_minor);
+            
             //Validate a negop packet
         
-            let negotiated_packet_size = super::icmsg_negotiate_pkt_size(icframe_major.try_into().unwrap(), icmsg_major.try_into().unwrap());
-            if (icframe_major > bindings::IC_VERSION_NEGOTIATION_MAX_VER_COUNT.try_into().unwrap()) || (icmsg_major > bindings::IC_VERSION_NEGOTIATION_MAX_VER_COUNT.try_into().unwrap()) || (negotiated_packet_size > buflen.try_into().unwrap()) {
-                pr_err!("Invalid icmsg negotiate - icframe_major: {}, icmsg_major: {}\n", icframe_major, icmsg_major);
-                return resp_fw_srv_version(negop,
+            let negotiated_packet_size = icmsg_negotiate_pkt_size(icframe_major.into(), icmsg_major.into());
+            if icframe_major as u32 > 
+                bindings::IC_VERSION_NEGOTIATION_MAX_VER_COUNT || icmsg_major as u32 > 
+                bindings::IC_VERSION_NEGOTIATION_MAX_VER_COUNT || negotiated_packet_size > buflen {
+                    pr_err!("Invalid icmsg negotiate - icframe_major: {}, icmsg_major: {}\n", icframe_major, icmsg_major);
+                    return resp_fw_srv_version(&mut negop, &mut ic_version_data,
                                            nego_fw_version,
                                            nego_srv_version,
                                            icframe_major,
@@ -345,19 +389,30 @@ fn vmbus_prep_negotiate_resp(icmsghdrp: *mut bindings::icmsg_hdr,
             /*
              * Select the framework version number we will support
              */
-            let icframe_vercnt = (*negop).icframe_vercnt;
-            let icmsg_vercnt = (*negop).icmsg_vercnt;
-            let icversion_data = (*negop).icversion_data.as_slice((icframe_vercnt + icmsg_vercnt) as usize);
+            
+            //let icframe_vercnt = negop.icframe_vercnt;
+            //let icmsg_vercnt = negop.icmsg_vercnt;
+            //let icversion_data = negop.icversion_data.as_slice((icframe_vercnt + icmsg_vercnt) as usize);
 
-            for i in 0..fw_vercnt as isize {
-                let fw_version_val = *fw_version.offset(i);
-                fw_major = fw_version_val >> 16;
-                fw_minor = fw_version_val & 0xFFFF;
+            /*
+            negop.icversion_data = unsafe {
+                let end_offset = start_offset + (core::mem::size_of::<icmsg_negotiate>() - core::mem::size_of::<u16>() + core::mem::size_of::<u16>() + core::mem::size_of::<u32>());
+                let ptr = buf[start_offset..end_offset].as_ptr() as *const usize;
+                *ptr
+            }
+            let ic_version_data = negop.icversion_data.as_slice(negop.icframe_vercnt + negop.icmsg_vercnt);
+            */
+            
+            //Select the framework version number
+            
+            for fw_version in fw_versions {
+                fw_major = fw_version >> 16;
+                fw_minor = fw_version & 0xFFFF;
 
-                for j in 0..(*negop).icframe_vercnt as usize {
-                    if i32::from(icversion_data[j].major) == fw_major && i32::from(icversion_data[j].minor) == fw_minor {
-                        icframe_major = i32::from(icversion_data[j].major);
-                        icframe_minor = i32::from(icversion_data[j].minor);
+                for j in 0..negop.icframe_vercnt as usize {
+                    if i32::from(ic_version_data[j].major) == fw_major && i32::from(ic_version_data[j].minor) == fw_minor {
+                        icframe_major = ic_version_data[j].major;
+                        icframe_minor = ic_version_data[j].minor;
                         found_match = true;
                         break;
                     }
@@ -369,7 +424,7 @@ fn vmbus_prep_negotiate_resp(icmsghdrp: *mut bindings::icmsg_hdr,
 
         
             if !found_match {
-                return resp_fw_srv_version(negop,
+                return resp_fw_srv_version(&mut negop, &mut ic_version_data, 
                                        nego_fw_version,
                                        nego_srv_version,
                                        icframe_major,
@@ -380,15 +435,14 @@ fn vmbus_prep_negotiate_resp(icmsghdrp: *mut bindings::icmsg_hdr,
             }
 
             found_match = false;
-            for i in 0..srv_vercnt as isize {
-                let srv_version_val = *srv_version.offset(i);
-                srv_major = srv_version_val >> 16;
-                srv_minor = srv_version_val & 0xFFFF;
+            for srv_version in srv_versions {
+                srv_major = srv_version >> 16;
+                srv_minor = srv_version & 0xFFFF;
             
-                for j in ((*negop).icframe_vercnt as usize)..((*negop).icframe_vercnt + (*negop).icmsg_vercnt) as usize {
-                    if i32::from(icversion_data[j].major) == srv_major && i32::from(icversion_data[j].minor) == srv_minor {
-                        icmsg_major = i32::from(icversion_data[j].major);
-                        icmsg_minor = i32::from(icversion_data[j].minor);
+                for j in (negop.icframe_vercnt as usize)..(total_ic_versions as usize) {
+                    if i32::from(ic_version_data[j].major) == srv_major && i32::from(ic_version_data[j].minor) == srv_minor {
+                        icmsg_major = ic_version_data[j].major;
+                        icmsg_minor = ic_version_data[j].minor;
                         found_match = true;
                         break;
                     }
@@ -399,7 +453,7 @@ fn vmbus_prep_negotiate_resp(icmsghdrp: *mut bindings::icmsg_hdr,
             }
             pr_info!("t-megha Prep_negotiate working");
         
-            resp_fw_srv_version(negop,
+            resp_fw_srv_version(&mut negop, &mut ic_version_data,
                             nego_fw_version,
                             nego_srv_version,
                             icframe_major,
@@ -422,7 +476,27 @@ pub fn prep_negotiate_resp(
         return None;
     }
 
+    //Extract ICMSG HEADER from the buffer
+    let mut icmsg_hdr: bindings::icmsg_hdr = unsafe {
+        let start_offset = super::BUSPIPE_HDR_SIZE;
+        let end_offset = super::ICMSG_HDR;
+        let ptr = buf[start_offset..end_offset].as_ptr() as *const bindings::icmsg_hdr;
+        *ptr
+    };
+
     // SAFETY: All buffers are valid for the duration of this call due to their lifetimes.
+    
+    let res = unsafe {
+        vmbus_prep_negotiate_resp(&mut icmsg_hdr, buf, fw_versions, srv_versions, &mut fw, &mut srv)
+    };
+    
+
+    //let b = buf.as_mut_ptr();
+    //let b_val = unsafe { b.offset(super::ICMSG_HDR.try_into().unwrap()) as *mut bindings::icmsg_negotiate };
+    //pr_info!("t-megha Value of buf ptr -> {:#?}", b_val);
+    pr_info!("t-megha Buf is -> {:?}", buf);
+    
+    /*
     let res = unsafe {
         bindings::vmbus_prep_negotiate_resp(
             buf[super::BUSPIPE_HDR_SIZE..super::BUSPIPE_HDR_SIZE + 20].as_mut_ptr().cast(),
@@ -436,6 +510,7 @@ pub fn prep_negotiate_resp(
             &mut srv,
         )
     };
+    */
     pr_info!(
         "t-megha This is the fw: {} and this is the srv: {} ",
         fw,
