@@ -249,6 +249,7 @@ pub fn icmsg_negotiate_pkt_size(icframe_vercnt: usize, icmsg_vercnt: usize) -> u
 /// On success, returns the pair of negotiated framework and service versions, and updates `buf`
 /// to hold the response.
 
+
 fn resp_fw_srv_version(negop: &mut bindings::icmsg_negotiate,
                        ic_version_data: &mut Vec<bindings::ic_version>,
                            nego_fw_version: &mut i32,
@@ -366,6 +367,8 @@ fn vmbus_prep_negotiate_resp(icmsg_hdr: &mut bindings::icmsg_hdr,
                 let ver_minor = version.minor;
                 pr_info!("t-megha ic_version: major={}, minor={}", ver_major, ver_minor);
             }
+
+            return false;
             //pr_info!("t-megha icframe_vercnt: {}, icmsg_vercnt: {}" , icframe_major, icmsg_major);
             pr_info!("t-megha printing from A icframe_major: {}, icframe_minor: {}, icmsg_major: {}, icmsg_minor: {}", icframe_major, icframe_minor, icmsg_major, icmsg_minor);
             
@@ -489,7 +492,6 @@ pub fn prep_negotiate_resp(
     let res = unsafe {
         vmbus_prep_negotiate_resp(&mut icmsg_hdr, buf, fw_versions, srv_versions, &mut fw, &mut srv)
     };
-    
 
     //let b = buf.as_mut_ptr();
     //let b_val = unsafe { b.offset(super::ICMSG_HDR.try_into().unwrap()) as *mut bindings::icmsg_negotiate };
@@ -517,11 +519,7 @@ pub fn prep_negotiate_resp(
         srv
         );
     //pr_info!("t-megha Calling vmbus_prep_negotiate_resp {}", res);
-    if res {
-        Some((fw, srv))
-    } else {
-        None
-    }
+    Some((fw, srv))
 }
 
 /// Declares a kernel module that exposes a single vmbus driver.
