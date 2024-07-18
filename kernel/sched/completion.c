@@ -341,3 +341,9 @@ bool completion_done(struct completion *x)
 	return true;
 }
 EXPORT_SYMBOL(completion_done);
+
+void init_completion_for_binding_gen(struct completion *x)
+{
+        init_completion(x);
+}
+EXPORT_SYMBOL_GPL(init_completion_for_binding_gen);

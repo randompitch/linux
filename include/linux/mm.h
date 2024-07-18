@@ -2137,6 +2137,8 @@ static __always_inline void *lowmem_page_address(const struct page *page)
 	return page_to_virt(page);
 }
 
+void *lowmem_page_address_for_binding_gen(const struct page *page);
+
 #if defined(CONFIG_HIGHMEM) && !defined(WANT_PAGE_VIRTUAL)
 #define HASHED_PAGE_VIRTUAL
 #endif

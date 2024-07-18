@@ -17,6 +17,8 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <linux/uio.h>
+//#include <linux/mm.h>
+//#include <asm/mshyperv.h>
 
 /* `bindgen` gets confused at certain things. */
 const size_t BINDINGS_ARCH_SLAB_MINALIGN = ARCH_SLAB_MINALIGN;

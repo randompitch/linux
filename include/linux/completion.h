@@ -87,6 +87,14 @@ static inline void init_completion(struct completion *x)
 	init_swait_queue_head(&x->wait);
 }
 
+extern void init_completion_for_binding_gen(struct completion *x);
+/*
+extern void init_completion_for_binding_gen(struct completion *x)
+{
+	init_completion(x);
+}
+EXPORT_SYMBOL_GPL(init_completion_for_binding_gen);
+*/
 /**
  * reinit_completion - reinitialize a completion structure
  * @x:  pointer to completion structure that is to be reinitialized

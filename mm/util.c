@@ -749,6 +749,12 @@ struct anon_vma *folio_anon_vma(struct folio *folio)
 	return (void *)(mapping - PAGE_MAPPING_ANON);
 }
 
+void *lowmem_page_address_for_binding_gen(const struct page *page)
+{
+        return page_to_virt(page);
+}
+EXPORT_SYMBOL_GPL(lowmem_page_address_for_binding_gen);
+
 /**
  * folio_mapping - Find the mapping where this folio is stored.
  * @folio: The folio.

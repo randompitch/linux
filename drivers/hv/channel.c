@@ -80,6 +80,11 @@ static inline u32 hv_ring_gpadl_send_hvpgoffset(u32 offset)
 	return (offset - (PAGE_SIZE - HV_HYP_PAGE_SIZE)) >> HV_HYP_PAGE_SHIFT;
 }
 
+u32 hv_ring_gpadl_send_hvpgoffset_for_binding_gen(u32 offset){
+	return hv_ring_gpadl_send_hvpgoffset(offset);
+}
+EXPORT_SYMBOL_GPL(hv_ring_gpadl_send_hvpgoffset_for_binding_gen);
+
 /*
  * hv_gpadl_hvpfn - Return the Hyper-V page PFN of the @i th Hyper-V page in
  *                  the gpadl
@@ -648,13 +653,11 @@ static int vmbus_alloc_requestor(struct vmbus_requestor *rqstor, u32 size)
 	return 0;
 }
 
-/* EDIT THIS
-vmbus_alloc_requestor_for_binding_gen(struct vmbus_requestor *rqstor, u32 size)
+int vmbus_alloc_requestor_for_binding_gen(struct vmbus_requestor *rqstor, u32 size)
 {
-	return vmbus_alloc_requestor(vmbus_requestor, size);
+	return vmbus_alloc_requestor(rqstor, size);
 }
 EXPORT_SYMBOL(vmbus_alloc_requestor_for_binding_gen);
-*/
 
 /*
  * vmbus_free_requestor - Frees memory allocated for @rqstor
@@ -665,6 +668,11 @@ static void vmbus_free_requestor(struct vmbus_requestor *rqstor)
 	kfree(rqstor->req_arr);
 	bitmap_free(rqstor->req_bitmap);
 }
+
+void vmbus_free_requestor_for_binding_gen(struct vmbus_requestor *rqstor) {
+	vmbus_free_requestor(rqstor);
+}
+EXPORT_SYMBOL_GPL(vmbus_free_requestor_for_binding_gen);
 
 static int __vmbus_open(struct vmbus_channel *newchannel,
 		       void *userdata, u32 userdatalen,
@@ -725,6 +733,7 @@ static int __vmbus_open(struct vmbus_channel *newchannel,
 			   sizeof(struct vmbus_channel_open_channel),
 			   GFP_KERNEL);
 	if (!open_info) {
+		pr_info("t-megha vmbus_open hits here");
 		err = -ENOMEM;
 		goto error_free_gpadl;
 	}
@@ -803,6 +812,13 @@ error_clean_ring:
 	newchannel->state = CHANNEL_OPEN_STATE;
 	return err;
 }
+
+void vmbus_spin_lock_unlock_irqsave(unsigned long flags, struct list_head *entry) {
+	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
+        list_del(entry);
+        spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
+}
+EXPORT_SYMBOL_GPL(vmbus_spin_lock_unlock_irqsave);
 
 /*
  * vmbus_connect_ring - Open the channel but reuse ring buffer

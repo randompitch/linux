@@ -1233,6 +1233,23 @@ extern int vmbus_establish_gpadl(struct vmbus_channel *channel,
 
 extern int vmbus_teardown_gpadl(struct vmbus_channel *channel,
 				     struct vmbus_gpadl *gpadl);
+extern int vmbus_establish_gpadl_for_binding_gen(struct vmbus_channel *channel, void *kbuffer,
+                          u32 size, u32 send_offset, struct vmbus_gpadl *gpadl);
+
+extern int vmbus_alloc_requestor_for_binding_gen(struct vmbus_requestor *rqstor, u32 size);
+
+//extern void init_completion_for_binding_gen(struct completion *x);
+
+void vmbus_spin_lock_unlock_irqsave(unsigned long flags, struct list_head *entry);
+
+int vmbus_post_msg(void *buffer, size_t buflen, bool can_sleep);
+
+//void __sched wait_for_completion(struct completion *x);
+
+u32 hv_ring_gpadl_send_hvpgoffset_for_binding_gen(u32 offset);
+
+//static void vmbus_free_requestor(struct vmbus_requestor *rqstor);
+void vmbus_free_requestor_for_binding_gen(struct vmbus_requestor *rqstor);
 
 void vmbus_reset_channel_cb(struct vmbus_channel *channel);
 
