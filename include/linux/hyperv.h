@@ -1240,7 +1240,8 @@ extern int vmbus_alloc_requestor_for_binding_gen(struct vmbus_requestor *rqstor,
 
 //extern void init_completion_for_binding_gen(struct completion *x);
 
-void vmbus_spin_lock_unlock_irqsave(unsigned long flags, struct list_head *entry);
+void vmbus_spin_lock_unlock_irqsave_add_tail(unsigned long flags, struct list_head *entry);
+void vmbus_spin_lock_unlock_irqsave_del(unsigned long flags, struct list_head *entry);
 
 int vmbus_post_msg(void *buffer, size_t buflen, bool can_sleep);
 

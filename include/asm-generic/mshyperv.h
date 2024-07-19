@@ -208,11 +208,8 @@ static inline int hv_cpu_number_to_vp_number(int cpu_number)
 	return hv_vp_index[cpu_number];
 }
 
-/*
-int hv_cpu_number_to_vp_number_for_binding_gen(int cpu_number){
-	return hv_cpu_number_to_vp_number(cpu_number);
-}
-*/
+extern int hv_cpu_number_to_vp_number_for_binding_gen(int cpu_number);
+
 static inline int __cpumask_to_vpset(struct hv_vpset *vpset,
 				    const struct cpumask *cpus,
 				    bool (*func)(int cpu))
