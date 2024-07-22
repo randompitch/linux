@@ -293,7 +293,7 @@ fn print_vmbus_channel_msginfo(open_info: *mut bindings::vmbus_channel_msginfo) 
             (*open_msg).child_relid = (*newchannel).offermsg.child_relid;
        
             (*open_msg).ringbuffer_gpadlhandle = (*newchannel).ringbuffer_gpadlhandle.gpadl_handle;
-            (*open_msg).downstream_ringbuffer_pageoffset = bindings::hv_ring_gpadl_send_hvpgoffset_for_binding_gen(send_pages << 13);
+            (*open_msg).downstream_ringbuffer_pageoffset = bindings::hv_ring_gpadl_send_hvpgoffset_for_binding_gen(send_pages << bindings::PAGE_SHIFT);
             let target_vp: i32 = bindings::hv_cpu_number_to_vp_number_for_binding_gen((*newchannel).target_cpu.try_into().unwrap());
             (*open_msg).target_vp = target_vp as u32;
             pr_info!("t-megha 5. __vmbus_open working, {}", userdatalen);
