@@ -749,6 +749,10 @@ struct anon_vma *folio_anon_vma(struct folio *folio)
 	return (void *)(mapping - PAGE_MAPPING_ANON);
 }
 
+/* lowmem_page_address_for_binding_gen - wrapper function for
+ *                                       generating bindings
+ *                                       for Rust support
+ */
 void *lowmem_page_address_for_binding_gen(const struct page *page)
 {
         return page_to_virt(page);

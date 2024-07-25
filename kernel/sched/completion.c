@@ -342,6 +342,10 @@ bool completion_done(struct completion *x)
 }
 EXPORT_SYMBOL(completion_done);
 
+/* init_completion_for_binding_gen - wrapper function for
+ *                                   generating bindings
+ *                                   for Rust support
+ */
 void init_completion_for_binding_gen(struct completion *x)
 {
         init_completion(x);

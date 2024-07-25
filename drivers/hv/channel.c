@@ -80,6 +80,11 @@ static inline u32 hv_ring_gpadl_send_hvpgoffset(u32 offset)
 	return (offset - (PAGE_SIZE - HV_HYP_PAGE_SIZE)) >> HV_HYP_PAGE_SHIFT;
 }
 
+/*
+ * hv_ring_gpadl_send_hvpgoffset_for_binding_gen - wrapper function for 
+ * 						   generating bindings
+ * 						   for Rust support
+ */ 						   	
 u32 hv_ring_gpadl_send_hvpgoffset_for_binding_gen(u32 offset){
 	return hv_ring_gpadl_send_hvpgoffset(offset);
 }
@@ -591,6 +596,10 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 }
 EXPORT_SYMBOL_GPL(vmbus_establish_gpadl);
 
+/* vmbus_establish_gpadl_for_binding_gen - wrapper function for
+ *                                                 generating bindings
+ *                                                 for Rust support
+ */
 int vmbus_establish_gpadl_for_binding_gen(struct vmbus_channel *channel, void *kbuffer,
                           u32 size, u32 send_offset, struct vmbus_gpadl *gpadl)
 {
@@ -653,6 +662,10 @@ static int vmbus_alloc_requestor(struct vmbus_requestor *rqstor, u32 size)
 	return 0;
 }
 
+/* vmbus_alloc_requestor_for_binding_gen - wrapper function for
+ *                                                 generating bindings
+ *                                                 for Rust support
+ */
 int vmbus_alloc_requestor_for_binding_gen(struct vmbus_requestor *rqstor, u32 size)
 {
 	return vmbus_alloc_requestor(rqstor, size);
@@ -669,6 +682,10 @@ static void vmbus_free_requestor(struct vmbus_requestor *rqstor)
 	bitmap_free(rqstor->req_bitmap);
 }
 
+/* vmbus_free_requestor_for_binding_gen - wrapper function for
+ *                                                 generating bindings
+ *                                                 for Rust support
+ */
 void vmbus_free_requestor_for_binding_gen(struct vmbus_requestor *rqstor) {
 	vmbus_free_requestor(rqstor);
 }
@@ -733,7 +750,6 @@ static int __vmbus_open(struct vmbus_channel *newchannel,
 			   sizeof(struct vmbus_channel_open_channel),
 			   GFP_KERNEL);
 	if (!open_info) {
-		pr_info("t-megha vmbus_open hits here");
 		err = -ENOMEM;
 		goto error_free_gpadl;
 	}
@@ -756,45 +772,6 @@ static int __vmbus_open(struct vmbus_channel *newchannel,
 		hv_ring_gpadl_send_hvpgoffset(send_pages << PAGE_SHIFT);
 	open_msg->target_vp = hv_cpu_number_to_vp_number(newchannel->target_cpu);
 
-	/*PRINTING THE OPEN_INFO STRUCTURE
-
-    // Print basic fields
-    pr_info("t-megha: msgsize: %u\n", open_info->msgsize);
-
-    // Print list_head addresses
-    pr_info("t-megha: msglistentry: %p\n", (void *)&open_info->msglistentry);
-    pr_info("t-megha: submsglist: %p\n", (void *)&open_info->submsglist);
-
-    // Print completion structure
-    pr_info("t-megha: waitevent: %u\n", open_info->waitevent.done);
-
-    // Print waiting_channel pointer
-    pr_info("t-megha: waiting_channel: %p\n", (void *)open_info->waiting_channel);
-
-    // Print union contents (assuming we know which one is used)
-    pr_info("t-megha: response.version_supported.version_supported: %u\n", open_info->response.version_supported.version_supported);
-    pr_info("t-megha: response.open_result.child_relid: %u\n", open_info->response.open_result.child_relid);
-    pr_info("t-megha: response.open_result.openid: %u\n", open_info->response.open_result.openid);
-    pr_info("t-megha: response.open_result.status: %u\n", open_info->response.open_result.status);
-    pr_info("t-megha: response.gpadl_torndown.gpadl: %u\n", open_info->response.gpadl_torndown.gpadl);
-    pr_info("t-megha: response.gpadl_created.child_relid: %u\n", open_info->response.gpadl_created.child_relid);
-    pr_info("t-megha: response.gpadl_created.gpadl: %u\n", open_info->response.gpadl_created.gpadl);
-    pr_info("t-megha: response.gpadl_created.creation_status: %u\n", open_info->response.gpadl_created.creation_status);
-    pr_info("t-megha: response.version_response.version_supported: %u\n", open_info->response.version_response.version_supported);
-    pr_info("t-megha: response.version_response.connection_state: %u\n", open_info->response.version_response.connection_state);
-    pr_info("t-megha: response.version_response.msg_conn_id: %u\n", open_info->response.version_response.msg_conn_id);
-    pr_info("t-megha: response.modify_response.child_relid: %u\n", open_info->response.modify_response.child_relid);
-    pr_info("t-megha: response.modify_response.status: %u\n", open_info->response.modify_response.status);
-
-    // Print message contents (interpretation depends on actual usage)
-    pr_info("t-megha: open_msg->header.msgtype: %d\n", open_msg->header.msgtype);
-    pr_info("t-megha: open_msg->openid: %d\n", open_msg->openid);
-    pr_info("t-megha: open_msg->child_relid: %d\n", open_msg->child_relid);
-    pr_info("t-megha: open_msg->ringbuffer_gpadlhandle: %d\n", open_msg->ringbuffer_gpadlhandle);
-    pr_info("t-megha: open_msg->downstream_ringbuffer_pageoffset: %d\n", open_msg->downstream_ringbuffer_pageoffset);
-    pr_info("t-megha: open_msg->target_vp: %d\n", open_msg->target_vp);
-	//pr_info("t-megha userdatalen = %d", userdatalen);
-	*/
 	if (userdatalen)
 		memcpy(open_msg->userdata, userdata, userdatalen);
 
@@ -827,7 +804,6 @@ static int __vmbus_open(struct vmbus_channel *newchannel,
 		goto error_free_info;
 	}
 
-	//pr_info("t-megha this print here: %d", open_info->response.open_result.status);
 	if (open_info->response.open_result.status) {
 		err = -EAGAIN;
 		goto error_free_info;
@@ -896,7 +872,6 @@ int vmbus_open(struct vmbus_channel *newchannel,
 			   onchannelcallback, context);
 	if (err)
 		vmbus_free_ring(newchannel);
-	//pr_info("t-megha open called from C");
 	return err;
 }
 EXPORT_SYMBOL_GPL(vmbus_open);

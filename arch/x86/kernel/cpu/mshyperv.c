@@ -105,6 +105,10 @@ void hv_set_register(unsigned int reg, u64 value)
 }
 EXPORT_SYMBOL_GPL(hv_set_register);
 
+/* hv_cpu_number_to_vp_number_for_binding_gen - wrapper function for
+ *                                              generating bindings
+ *                                              for Rust support
+ */
 int hv_cpu_number_to_vp_number_for_binding_gen(int cpu_number){
         return hv_cpu_number_to_vp_number(cpu_number);
 }

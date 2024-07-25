@@ -1,12 +1,12 @@
 //! Implementation of the shutdown utility.
-use kernel::macros::pin_data;
-use kernel::hv::{self, icmsg_hdr, util, PacketType, BUSPIPE_HDR_SIZE, ICMSG_HDR};
-use kernel::{prelude::*, workqueue};
-use kernel::sync::Arc;
-use kernel::workqueue::{Work, WorkItem};
-use kernel::{bindings, types::FromByteSlice, new_work, impl_has_work};
 use core::convert::Infallible;
 use core::mem::{offset_of, size_of};
+use kernel::hv::{self, icmsg_hdr, util, PacketType, BUSPIPE_HDR_SIZE, ICMSG_HDR};
+use kernel::macros::pin_data;
+use kernel::sync::Arc;
+use kernel::workqueue::{Work, WorkItem};
+use kernel::{bindings, impl_has_work, new_work, types::FromByteSlice};
+use kernel::{prelude::*, workqueue};
 
 const SD_MAJOR: i32 = 3;
 const SD_MINOR: i32 = 0;
@@ -19,12 +19,7 @@ const SD_VERSION: i32 = SD_MAJOR << 16 | SD_MINOR;
 const SD_MAJOR_1: i32 = 1;
 const SD_VERSION_1: i32 = SD_MAJOR_1 << 16 | SD_MINOR;
 
-const SD_VERSIONS: &[i32] = &[
-    SD_VERSION_3_2,
-    SD_VERSION_3_1,
-    SD_VERSION,
-    SD_VERSION_1
-];
+const SD_VERSIONS: &[i32] = &[SD_VERSION_3_2, SD_VERSION_3_1, SD_VERSION, SD_VERSION_1];
 
 const BUF_SIZE: usize = (size_of::<bindings::shutdown_msg_data>() + ICMSG_HDR) * 2;
 const SD_WK_ID: u64 = 1;
@@ -48,7 +43,6 @@ struct SdWork {
     hibernate_work: Work<SdWork, HB_WK_ID>,
 }
 
-
 impl_has_work! {
     impl HasWork<Self, SD_WK_ID> for SdWork { self.shutdown_work }
     impl HasWork<Self, RB_WK_ID> for SdWork { self.reboot_work }
@@ -59,14 +53,18 @@ impl WorkItem<SD_WK_ID> for SdWork {
     type Pointer = Arc<SdWork>;
     fn run(_ctx: Arc<SdWork>) {
         pr_info!("SdWork work run!");
-        unsafe { bindings::orderly_poweroff(true); }
+        unsafe {
+            bindings::orderly_poweroff(true);
+        }
     }
 }
 impl WorkItem<RB_WK_ID> for SdWork {
     type Pointer = Arc<SdWork>;
     fn run(_ctx: Arc<SdWork>) {
         pr_info!("Reboot work run!");
-        unsafe { bindings::orderly_reboot(); }
+        unsafe {
+            bindings::orderly_reboot();
+        }
     }
 }
 impl WorkItem<HB_WK_ID> for SdWork {
@@ -105,10 +103,12 @@ impl util::Service for Shutdown {
             pr_info!("Hibernation not supported");
         }
         Ok(res)
-
     }
 
-    fn callback(data: <Self::Data as kernel::types::ForeignOwnable>::BorrowedMut<'_>, chan: &hv::Channel) {
+    fn callback(
+        data: <Self::Data as kernel::types::ForeignOwnable>::BorrowedMut<'_>,
+        chan: &hv::Channel,
+    ) {
         loop {
             let (requestid, recvlen) = if let Ok(ret) = chan.recv_packet(&mut data.buf) {
                 ret
@@ -152,13 +152,17 @@ impl util::Service for Shutdown {
                 }
 
                 bindings::ICMSGTYPE_SHUTDOWN => {
-                    if let Some(flags) = u32::from_bytes(buf,
-                                                         ICMSG_HDR + offset_of!(bindings::shutdown_msg_data, flags)) {
+                    if let Some(flags) = u32::from_bytes(
+                        buf,
+                        ICMSG_HDR + offset_of!(bindings::shutdown_msg_data, flags),
+                    ) {
                         match flags {
                             0..=1 => {
                                 pr_info!("Shutdown request recieved successfully");
                                 new_status = bindings::HV_S_OK;
-                                if let Err(_) = workqueue::system().enqueue::<Arc<SdWork>, SD_WK_ID>(data.work.clone()) {
+                                if let Err(_) = workqueue::system()
+                                    .enqueue::<Arc<SdWork>, SD_WK_ID>(data.work.clone())
+                                {
                                     new_status = bindings::HV_E_FAIL;
                                     pr_err!("Failed to enqueue shutdown work");
                                 }
@@ -166,7 +170,9 @@ impl util::Service for Shutdown {
                             2..=3 => {
                                 pr_info!("Restart request recieved successfully");
                                 new_status = bindings::HV_S_OK;
-                                if let Err(_) = workqueue::system().enqueue::<Arc<SdWork>, RB_WK_ID>(data.work.clone()) {
+                                if let Err(_) = workqueue::system()
+                                    .enqueue::<Arc<SdWork>, RB_WK_ID>(data.work.clone())
+                                {
                                     new_status = bindings::HV_E_FAIL;
                                     pr_err!("Failed to enqueue reboot work");
                                 }
@@ -174,8 +180,9 @@ impl util::Service for Shutdown {
                             4..=5 => {
                                 pr_info!("Hibernate request recieved successfully");
                                 new_status = if data.hibernate_supported {
-                                    if let Err(_) =
-                                            workqueue::system().enqueue::<Arc<SdWork>, HB_WK_ID>(data.work.clone()) {
+                                    if let Err(_) = workqueue::system()
+                                        .enqueue::<Arc<SdWork>, HB_WK_ID>(data.work.clone())
+                                    {
                                         pr_err!("Failed to enqueue hibernate work");
                                         bindings::HV_E_FAIL
                                     } else {
@@ -191,24 +198,20 @@ impl util::Service for Shutdown {
                             }
                         }
                     } else {
-                        pr_err!(
-                            "Invalid shutdown msg data, length too small: {}\n",
-                            recvlen
-                        );
+                        pr_err!("Invalid shutdown msg data, length too small: {}\n", recvlen);
                         break;
                     }
                 }
 
                 _ => {
                     new_status = bindings::HV_E_FAIL;
-                    pr_err!(
-                        "Shutdown request received. Invalid msg type: {}\n",
-                        msgtype
-                    );
+                    pr_err!("Shutdown request received. Invalid msg type: {}\n", msgtype);
                 }
             }
             // Unwrap is ok, we've already checked that buf is big enough
-            icmsg_hdr::from_bytes_mut(buf, BUSPIPE_HDR_SIZE).unwrap().status = new_status;
+            icmsg_hdr::from_bytes_mut(buf, BUSPIPE_HDR_SIZE)
+                .unwrap()
+                .status = new_status;
 
             let _ = chan.send_packet(buf, requestid, PacketType::DataInband);
         }

@@ -39,12 +39,12 @@ mod build_assert;
 pub mod device;
 pub mod driver;
 pub mod error;
+#[cfg(CONFIG_HYPERV)]
+pub mod hv;
 pub mod init;
 pub mod ioctl;
 #[cfg(CONFIG_KUNIT)]
 pub mod kunit;
-#[cfg(CONFIG_HYPERV)]
-pub mod hv;
 pub mod prelude;
 pub mod print;
 mod static_assert;

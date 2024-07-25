@@ -32,7 +32,10 @@ impl util::Service for Heartbeat {
         })?)
     }
 
-    fn callback(data: <Self::Data as kernel::types::ForeignOwnable>::BorrowedMut<'_>, chan: &hv::Channel) {
+    fn callback(
+        data: <Self::Data as kernel::types::ForeignOwnable>::BorrowedMut<'_>,
+        chan: &hv::Channel,
+    ) {
         loop {
             let (requestid, recvlen) = if let Ok(ret) = chan.recv_packet(&mut data.buf) {
                 ret
