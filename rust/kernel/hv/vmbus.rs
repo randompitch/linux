@@ -461,7 +461,7 @@ pub fn prep_negotiate_resp(
         &mut srv,
     );
 
-
+    pr_info!("Rust: Negotiated Framework version is {} and Negotiated Service version is {}", fw, srv);
     // SAFETY: All buffers are valid for the duration of this call due to their lifetimes.
     if res {
         Some((fw, srv))

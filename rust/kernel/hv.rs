@@ -148,8 +148,10 @@ impl ChannelToOpen {
         context: *mut core::ffi::c_void,
     ) -> core::ffi::c_int {
         unsafe {
-            let open_msg: *mut bindings::vmbus_channel_open_channel;
+            #[allow(unused_assignments)]
             let mut open_info: *mut bindings::vmbus_channel_msginfo = core::ptr::null_mut();
+            
+            let open_msg: *mut bindings::vmbus_channel_open_channel;
             let page: *mut bindings::page = (*newchannel).ringbuffer_page;
             let send_pages: u32;
             let recv_pages: u32;
@@ -318,6 +320,7 @@ impl ChannelToOpen {
         onchannelcallback: bindings::onchannel_t,
         context: *mut core::ffi::c_void,
     ) -> core::ffi::c_int {
+        #[allow(unused_assignments)]
         let mut err: i32 = 0;
 
         err = unsafe {
@@ -336,6 +339,8 @@ impl ChannelToOpen {
         if err != 0 {
             unsafe { bindings::vmbus_free_ring(newchannel) };
         }
+
+        pr_info!("Rust: A channel is opened");
 
         err
     }
@@ -434,6 +439,7 @@ impl<T: ForeignOwnable> ChannelCloser<T> {
                 bindings::vmbus_free_ring(channel);
             }
         }
+        pr_info!("Rust: Closing a channel");
     }
 
     /// Manually closes the channel and returns a new channel and the data.
